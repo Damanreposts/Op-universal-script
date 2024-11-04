@@ -1,4 +1,4 @@
--- Creating the main GUI elements
+-- Main GUI Elements
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local UICorner_MainFrame = Instance.new("UICorner")
@@ -6,10 +6,10 @@ local CloseButton = Instance.new("TextButton")
 local UICorner_CloseButton = Instance.new("UICorner")
 local ScrollingFrame = Instance.new("ScrollingFrame")
 
--- Add the GUI to StarterGui (this will make it visible when you play)
+-- Place GUI in PlayerGui to make it visible
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Main frame settings
+-- Main Frame settings
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -17,10 +17,9 @@ MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
 MainFrame.Size = UDim2.new(0, 400, 0, 500)
 MainFrame.Active = true
 MainFrame.Draggable = true
-
 UICorner_MainFrame.Parent = MainFrame  -- Adds rounded corners
 
--- Scrolling frame settings
+-- Scrolling Frame settings
 ScrollingFrame.Parent = MainFrame
 ScrollingFrame.Size = UDim2.new(1, -20, 1, -60)
 ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
@@ -36,12 +35,12 @@ CloseButton.Position = UDim2.new(1, -35, 0, 5)
 CloseButton.Text = "X"
 UICorner_CloseButton.Parent = CloseButton
 
--- Functionality to close the GUI
+-- Close button functionality
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Utility function to create an input section with label, textbox, and button
+-- Utility function to create input section with label, textbox, and button
 local function createInputSection(parent, labelText, placeholderText, buttonText, onClick)
     local Frame = Instance.new("Frame")
     local UICorner_Frame = Instance.new("UICorner")
@@ -102,12 +101,89 @@ createInputSection(ScrollingFrame, "Walk Speed", "Enter walk speed", "Set Walk S
     game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(value) or 16
 end)
 
-createInputSection(ScrollingFrame, "Infinite Jump", "", "Enable Infinite Jump", function()
-    print("Infinite jump enabled")
-    -- Implementing infinite jump
-    game:GetService("UserInputService").JumpRequest:Connect(function()
-        game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+-- Function to create button-only sections for Infinite Jump, Noclip, and Show Hitboxes
+local function createButtonOnlySection(parent, buttonText, onClick)
+    local ButtonFrame = Instance.new("Frame")
+    local Button = Instance.new("TextButton")
+    local UICorner_ButtonFrame = Instance.new("UICorner")
+    local UICorner_Button = Instance.new("UICorner")
+    
+    ButtonFrame.Parent = parent
+    ButtonFrame.Size = UDim2.new(0.9, 0, 0, 50)
+    ButtonFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    UICorner_ButtonFrame.Parent = ButtonFrame
+    
+    Button.Parent = ButtonFrame
+    Button.Text = buttonText
+    Button.Size = UDim2.new(1, -10, 1, -10)
+    Button.Position = UDim2.new(0, 5, 0, 5)
+    Button.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    UICorner_Button.Parent = Button
+    
+    Button.MouseButton1Click:Connect(onClick)
+end
+
+-- Infinite Jump toggle
+local infiniteJumpEnabled = false
+createButtonOnlySection(ScrollingFrame, "Enable Infinite Jump", function()
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    print("Infinite Jump:", infiniteJumpEnabled and "Enabled" or "Disabled")
+    if infiniteJumpEnabled then
+        game:GetService("UserInputService").JumpRequest:Connect(function()
+            if infiniteJumpEnabled then
+                game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    end
+end)
+
+-- Noclip toggle
+local noclipEnabled = false
+createButtonOnlySection(ScrollingFrame, "Enable Noclip", function()
+    noclipEnabled = not noclipEnabled
+    print("Noclip:", noclipEnabled and "Enabled" or "Disabled")
+    game:GetService("RunService").Stepped:Connect(function()
+        if noclipEnabled then
+            for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
     end)
+end)
+
+-- Show Hitboxes toggle
+local showHitboxesEnabled = false
+createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
+    showHitboxesEnabled = not showHitboxesEnabled
+    print("Show Hitboxes:", showHitboxesEnabled and "Enabled" or "Disabled")
+    
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer and player.Character then
+            for _, part in pairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if showHitboxesEnabled then
+                        -- Create a red box around the hitbox
+                        local hitbox = Instance.new("BoxHandleAdornment")
+                        hitbox.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+                        hitbox.Color3 = Color3.fromRGB(255, 0, 0)
+                        hitbox.Transparency = 0.5
+                        hitbox.Adornee = part
+                        hitbox.AlwaysOnTop = true
+                        hitbox.Parent = part
+                    else
+                        -- Remove any hitbox adornments
+                        for _, adornment in pairs(part:GetChildren()) do
+                            if adornment:IsA("BoxHandleAdornment") then
+                                adornment:Destroy()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 end)
 
 -- Setting up the scrolling frame layout
