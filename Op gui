@@ -97,21 +97,40 @@ end
 
 -- Adding input sections with actions for each button
 createInputSection(ScrollingFrame, "Hitbox Size", "Enter hitbox size", "Expand Hitbox", function(value)
-    print("Hitbox size set to:", value)
-    -- Modify players' hitbox size here if desired
+    local newSize = tonumber(value)
+    if newSize and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = game.Players.LocalPlayer.Character.HumanoidRootPart
+        humanoidRootPart.Size = Vector3.new(newSize, newSize, newSize)  -- Adjust the hitbox size
+        humanoidRootPart.CanCollide = true  -- Ensure the character can still collide
+        print("Hitbox size set to:", newSize)
+    else
+        print("Invalid hitbox size.")
+    end
 end)
 
 createInputSection(ScrollingFrame, "Jump Power", "Enter jump power", "Set Jump Power", function(value)
     local player = game.Players.LocalPlayer
     if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.JumpPower = tonumber(value) or 50
+        local jumpPowerValue = tonumber(value)
+        if jumpPowerValue then
+            player.Character.Humanoid.JumpPower = jumpPowerValue
+            print("Jump power set to:", jumpPowerValue)
+        else
+            print("Invalid jump power.")
+        end
     end
 end)
 
 createInputSection(ScrollingFrame, "Walk Speed", "Enter walk speed", "Set Walk Speed", function(value)
     local player = game.Players.LocalPlayer
     if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = tonumber(value) or 16
+        local walkSpeedValue = tonumber(value)
+        if walkSpeedValue then
+            player.Character.Humanoid.WalkSpeed = walkSpeedValue
+            print("Walk speed set to:", walkSpeedValue)
+        else
+            print("Invalid walk speed.")
+        end
     end
 end)
 
@@ -159,6 +178,12 @@ createButtonOnlySection(ScrollingFrame, "Enable Noclip", function()
             for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
+                end
+            end
+        else
+            for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
                 end
             end
         end
