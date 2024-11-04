@@ -5,8 +5,9 @@ local UICorner_MainFrame = Instance.new("UICorner")
 local CloseButton = Instance.new("TextButton")
 local UICorner_CloseButton = Instance.new("UICorner")
 local ScrollingFrame = Instance.new("ScrollingFrame")
+local TitleLabel = Instance.new("TextLabel")
 
--- Place GUI in PlayerGui to make it visible
+-- Place GUI in PlayerGui
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Main Frame settings
@@ -17,11 +18,20 @@ MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
 MainFrame.Size = UDim2.new(0, 400, 0, 500)
 MainFrame.Active = true
 MainFrame.Draggable = true
-UICorner_MainFrame.Parent = MainFrame  -- Adds rounded corners
+UICorner_MainFrame.Parent = MainFrame
+
+-- Title Label
+TitleLabel.Parent = MainFrame
+TitleLabel.Text = "Bored Script 3000"
+TitleLabel.Position = UDim2.new(0, 0, 0, 5)
+TitleLabel.Size = UDim2.new(1, 0, 0, 40)
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 20
+TitleLabel.BackgroundTransparency = 1
 
 -- Scrolling Frame settings
 ScrollingFrame.Parent = MainFrame
-ScrollingFrame.Size = UDim2.new(1, -20, 1, -60)
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -90)
 ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
 ScrollingFrame.ScrollBarThickness = 8
@@ -40,7 +50,7 @@ CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Utility function to create input section with label, textbox, and button
+-- Utility function to create an input section with label, textbox, and button
 local function createInputSection(parent, labelText, placeholderText, buttonText, onClick)
     local Frame = Instance.new("Frame")
     local UICorner_Frame = Instance.new("UICorner")
@@ -67,15 +77,15 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     TextBox.Parent = Frame
     TextBox.PlaceholderText = placeholderText
     TextBox.Position = UDim2.new(0, 10, 0, 40)
-    TextBox.Size = UDim2.new(1, -20, 0, 30)
+    TextBox.Size = UDim2.new(0.6, -10, 0, 30)
     TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     
     -- Button
     Button.Parent = Frame
     Button.Text = buttonText
-    Button.Position = UDim2.new(0, 10, 0, 80)
-    Button.Size = UDim2.new(1, -20, 0, 30)
+    Button.Position = UDim2.new(0.6, 10, 0, 40)
+    Button.Size = UDim2.new(0.4, -10, 0, 30)
     Button.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
     UICorner_Button.Parent = Button
     
@@ -85,20 +95,24 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     end)
 end
 
--- Adding the input sections with actions for each button
+-- Adding input sections with actions for each button
 createInputSection(ScrollingFrame, "Hitbox Size", "Enter hitbox size", "Expand Hitbox", function(value)
     print("Hitbox size set to:", value)
-    -- Example: Modify players' hitbox size here
+    -- Modify players' hitbox size here if desired
 end)
 
 createInputSection(ScrollingFrame, "Jump Power", "Enter jump power", "Set Jump Power", function(value)
-    print("Jump power set to:", value)
-    game.Players.LocalPlayer.Character.Humanoid.JumpPower = tonumber(value) or 50
+    local player = game.Players.LocalPlayer
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.JumpPower = tonumber(value) or 50
+    end
 end)
 
 createInputSection(ScrollingFrame, "Walk Speed", "Enter walk speed", "Set Walk Speed", function(value)
-    print("Walk speed set to:", value)
-    game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(value) or 16
+    local player = game.Players.LocalPlayer
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.WalkSpeed = tonumber(value) or 16
+    end
 end)
 
 -- Function to create button-only sections for Infinite Jump, Noclip, and Show Hitboxes
@@ -127,7 +141,6 @@ end
 local infiniteJumpEnabled = false
 createButtonOnlySection(ScrollingFrame, "Enable Infinite Jump", function()
     infiniteJumpEnabled = not infiniteJumpEnabled
-    print("Infinite Jump:", infiniteJumpEnabled and "Enabled" or "Disabled")
     if infiniteJumpEnabled then
         game:GetService("UserInputService").JumpRequest:Connect(function()
             if infiniteJumpEnabled then
@@ -141,7 +154,6 @@ end)
 local noclipEnabled = false
 createButtonOnlySection(ScrollingFrame, "Enable Noclip", function()
     noclipEnabled = not noclipEnabled
-    print("Noclip:", noclipEnabled and "Enabled" or "Disabled")
     game:GetService("RunService").Stepped:Connect(function()
         if noclipEnabled then
             for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
@@ -157,14 +169,11 @@ end)
 local showHitboxesEnabled = false
 createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
     showHitboxesEnabled = not showHitboxesEnabled
-    print("Show Hitboxes:", showHitboxesEnabled and "Enabled" or "Disabled")
-    
     for _, player in pairs(game.Players:GetPlayers()) do
         if player ~= game.Players.LocalPlayer and player.Character then
             for _, part in pairs(player.Character:GetDescendants()) do
                 if part:IsA("BasePart") then
                     if showHitboxesEnabled then
-                        -- Create a red box around the hitbox
                         local hitbox = Instance.new("BoxHandleAdornment")
                         hitbox.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
                         hitbox.Color3 = Color3.fromRGB(255, 0, 0)
@@ -173,7 +182,6 @@ createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
                         hitbox.AlwaysOnTop = true
                         hitbox.Parent = part
                     else
-                        -- Remove any hitbox adornments
                         for _, adornment in pairs(part:GetChildren()) do
                             if adornment:IsA("BoxHandleAdornment") then
                                 adornment:Destroy()
@@ -186,7 +194,7 @@ createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
     end
 end)
 
--- Setting up the scrolling frame layout
+-- Scrolling Frame layout
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = ScrollingFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
