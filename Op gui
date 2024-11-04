@@ -1,0 +1,113 @@
+-- Paste this code into a new GitHub file and save it as `gui_script.lua`
+-- Then you can load it in your game with a loadstring from GitHub.
+
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local UICorner_MainFrame = Instance.new("UICorner")
+local CloseButton = Instance.new("TextButton")
+local UICorner_CloseButton = Instance.new("UICorner")
+local ScrollingFrame = Instance.new("ScrollingFrame")
+
+-- Settings for GUI elements
+ScreenGui.Name = "CustomGUI"
+ScreenGui.Parent = game.CoreGui
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+MainFrame.Size = UDim2.new(0, 400, 0, 500)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+UICorner_MainFrame.Parent = MainFrame
+
+ScrollingFrame.Parent = MainFrame
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -60)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)  -- Making scrollable area
+ScrollingFrame.ScrollBarThickness = 8
+
+CloseButton.Name = "CloseButton"
+CloseButton.Parent = MainFrame
+CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -35, 0, 5)
+CloseButton.Text = "X"
+UICorner_CloseButton.Parent = CloseButton
+
+-- Close Button Functionality
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Utility function to create input sections
+local function createInputSection(parent, labelText, placeholderText, buttonText, onClick)
+    local Frame = Instance.new("Frame")
+    local UICorner_Frame = Instance.new("UICorner")
+    local Label = Instance.new("TextLabel")
+    local TextBox = Instance.new("TextBox")
+    local Button = Instance.new("TextButton")
+    local UICorner_Button = Instance.new("UICorner")
+    
+    Frame.Parent = parent
+    Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    Frame.Size = UDim2.new(0.9, 0, 0, 100)
+    
+    UICorner_Frame.Parent = Frame
+    
+    Label.Parent = Frame
+    Label.Text = labelText
+    Label.Position = UDim2.new(0, 10, 0, 10)
+    Label.Size = UDim2.new(1, -20, 0, 20)
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.TextSize = 16
+    Label.BackgroundTransparency = 1
+    
+    TextBox.Parent = Frame
+    TextBox.PlaceholderText = placeholderText
+    TextBox.Position = UDim2.new(0, 10, 0, 40)
+    TextBox.Size = UDim2.new(1, -20, 0, 30)
+    TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    
+    Button.Parent = Frame
+    Button.Text = buttonText
+    Button.Position = UDim2.new(0, 10, 0, 80)
+    Button.Size = UDim2.new(1, -20, 0, 30)
+    Button.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    
+    UICorner_Button.Parent = Button
+    
+    -- Connect button action
+    Button.MouseButton1Click:Connect(function()
+        onClick(TextBox.Text)
+    end)
+end
+
+-- Adding the input sections
+createInputSection(ScrollingFrame, "Hitbox Size", "Enter hitbox size", "Expand Hitbox", function(value)
+    -- Set hitbox size code here
+    print("Hitbox size set to:", value)
+end)
+
+createInputSection(ScrollingFrame, "Jump Power", "Enter jump power", "Set Jump Power", function(value)
+    -- Set jump power code here
+    print("Jump power set to:", value)
+end)
+
+createInputSection(ScrollingFrame, "Walk Speed", "Enter walk speed", "Set Walk Speed", function(value)
+    -- Set walk speed code here
+    print("Walk speed set to:", value)
+end)
+
+createInputSection(ScrollingFrame, "Infinite Jump", "", "Enable Infinite Jump", function(value)
+    -- Enable infinite jump code here
+    print("Infinite jump enabled")
+end)
+
+-- Setting up scrolling frame layout
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollingFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 10)
