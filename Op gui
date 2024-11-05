@@ -1,4 +1,3 @@
--- Main GUI Elements
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
 local UICorner_MainFrame = Instance.new("UICorner")
@@ -7,10 +6,8 @@ local UICorner_CloseButton = Instance.new("UICorner")
 local ScrollingFrame = Instance.new("ScrollingFrame")
 local TitleLabel = Instance.new("TextLabel")
 
--- Place GUI in PlayerGui
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Main Frame settings
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -20,7 +17,6 @@ MainFrame.Active = true
 MainFrame.Draggable = true
 UICorner_MainFrame.Parent = MainFrame
 
--- Title Label
 TitleLabel.Parent = MainFrame
 TitleLabel.Text = "Bored Script 3000"
 TitleLabel.Position = UDim2.new(0, 0, 0, 5)
@@ -29,14 +25,12 @@ TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 20
 TitleLabel.BackgroundTransparency = 1
 
--- Scrolling Frame settings
 ScrollingFrame.Parent = MainFrame
 ScrollingFrame.Size = UDim2.new(1, -20, 1, -90)
 ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
 ScrollingFrame.ScrollBarThickness = 8
 
--- Close button (red X) settings
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = MainFrame
 CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
@@ -45,12 +39,10 @@ CloseButton.Position = UDim2.new(1, -35, 0, 5)
 CloseButton.Text = "X"
 UICorner_CloseButton.Parent = CloseButton
 
--- Close button functionality
 CloseButton.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
--- Utility function to create an input section with label, textbox, and button
 local function createInputSection(parent, labelText, placeholderText, buttonText, onClick)
     local Frame = Instance.new("Frame")
     local UICorner_Frame = Instance.new("UICorner")
@@ -64,7 +56,6 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     Frame.Size = UDim2.new(0.9, 0, 0, 100)
     UICorner_Frame.Parent = Frame
 
-    -- Label
     Label.Parent = Frame
     Label.Text = labelText
     Label.Position = UDim2.new(0, 10, 0, 10)
@@ -73,7 +64,6 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     Label.TextSize = 16
     Label.BackgroundTransparency = 1
     
-    -- TextBox
     TextBox.Parent = Frame
     TextBox.PlaceholderText = placeholderText
     TextBox.Position = UDim2.new(0, 10, 0, 40)
@@ -81,7 +71,6 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
     
-    -- Button
     Button.Parent = Frame
     Button.Text = buttonText
     Button.Position = UDim2.new(0.6, 10, 0, 40)
@@ -89,22 +78,17 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     Button.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
     UICorner_Button.Parent = Button
     
-    -- Button click functionality
     Button.MouseButton1Click:Connect(function()
         onClick(TextBox.Text)
     end)
 end
 
--- Adding input sections with actions for each button
 createInputSection(ScrollingFrame, "Hitbox Size", "Enter hitbox size", "Expand Hitbox", function(value)
     local newSize = tonumber(value)
     if newSize and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         local humanoidRootPart = game.Players.LocalPlayer.Character.HumanoidRootPart
-        humanoidRootPart.Size = Vector3.new(newSize, newSize, newSize)  -- Adjust the hitbox size
-        humanoidRootPart.CanCollide = true  -- Ensure the character can still collide
-        print("Hitbox size set to:", newSize)
-    else
-        print("Invalid hitbox size.")
+        humanoidRootPart.Size = Vector3.new(newSize, newSize, newSize)
+        humanoidRootPart.CanCollide = true
     end
 end)
 
@@ -114,9 +98,6 @@ createInputSection(ScrollingFrame, "Jump Power", "Enter jump power", "Set Jump P
         local jumpPowerValue = tonumber(value)
         if jumpPowerValue then
             player.Character.Humanoid.JumpPower = jumpPowerValue
-            print("Jump power set to:", jumpPowerValue)
-        else
-            print("Invalid jump power.")
         end
     end
 end)
@@ -127,14 +108,10 @@ createInputSection(ScrollingFrame, "Walk Speed", "Enter walk speed", "Set Walk S
         local walkSpeedValue = tonumber(value)
         if walkSpeedValue then
             player.Character.Humanoid.WalkSpeed = walkSpeedValue
-            print("Walk speed set to:", walkSpeedValue)
-        else
-            print("Invalid walk speed.")
         end
     end
 end)
 
--- Function to create button-only sections for Infinite Jump, Noclip, and Show Hitboxes
 local function createButtonOnlySection(parent, buttonText, onClick)
     local ButtonFrame = Instance.new("Frame")
     local Button = Instance.new("TextButton")
@@ -156,7 +133,6 @@ local function createButtonOnlySection(parent, buttonText, onClick)
     Button.MouseButton1Click:Connect(onClick)
 end
 
--- Infinite Jump toggle
 local infiniteJumpEnabled = false
 createButtonOnlySection(ScrollingFrame, "Enable Infinite Jump", function()
     infiniteJumpEnabled = not infiniteJumpEnabled
@@ -169,7 +145,6 @@ createButtonOnlySection(ScrollingFrame, "Enable Infinite Jump", function()
     end
 end)
 
--- Noclip toggle
 local noclipEnabled = false
 createButtonOnlySection(ScrollingFrame, "Enable Noclip", function()
     noclipEnabled = not noclipEnabled
@@ -191,7 +166,6 @@ createButtonOnlySection(ScrollingFrame, "Enable Noclip", function()
     end)
 end)
 
--- Show Hitboxes toggle
 local showHitboxesEnabled = false
 createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
     showHitboxesEnabled = not showHitboxesEnabled
@@ -220,25 +194,22 @@ createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
     end
 end)
 
--- Reset features on player death
 local function resetFeatures()
     infiniteJumpEnabled = false
     noclipEnabled = false
     if game.Players.LocalPlayer.Character then
         local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
-            humanoid.JumpPower = 50  -- Reset to default
-            humanoid.WalkSpeed = 16   -- Reset to default
+            humanoid.JumpPower = 50
+            humanoid.WalkSpeed = 16
         end
     end
 end
 
--- Connect to Player's death event
 game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
     resetFeatures()
 end)
 
--- Scrolling Frame layout
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = ScrollingFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
