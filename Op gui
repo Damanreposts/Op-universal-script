@@ -112,6 +112,15 @@ createInputSection(ScrollingFrame, "Walk Speed", "Enter walk speed", "Set Walk S
     end
 end)
 
+createInputSection(ScrollingFrame, "Gravity", "Default: 196.2", "Set Gravity", function(value)
+    local gravityValue = tonumber(value)
+    if gravityValue then
+        game.Workspace.Gravity = gravityValue
+    else
+        game.Workspace.Gravity = 196.2
+    end
+end)
+
 local function createButtonOnlySection(parent, buttonText, onClick)
     local ButtonFrame = Instance.new("Frame")
     local Button = Instance.new("TextButton")
@@ -192,22 +201,6 @@ createButtonOnlySection(ScrollingFrame, "Show Hitboxes", function()
             end
         end
     end
-end)
-
-local function resetFeatures()
-    infiniteJumpEnabled = false
-    noclipEnabled = false
-    if game.Players.LocalPlayer.Character then
-        local humanoid = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.JumpPower = 50
-            humanoid.WalkSpeed = 16
-        end
-    end
-end
-
-game.Players.LocalPlayer.CharacterAdded:Connect(function(character)
-    resetFeatures()
 end)
 
 local UIListLayout = Instance.new("UIListLayout")
