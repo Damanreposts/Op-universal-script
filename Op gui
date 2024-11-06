@@ -158,7 +158,48 @@ createInputSection(ScrollingFrame, "Teleport to Player", "Enter username", "Tele
     end
 end)
 
--- Infinite jump, noclip, and hitbox visibility button sections remain unchanged.
+-- Function to create standalone buttons
+local function createButton(parent, buttonText, onClick)
+    local Button = Instance.new("TextButton")
+    local UICorner_Button = Instance.new("UICorner")
+    
+    Button.Parent = parent
+    Button.Text = buttonText
+    Button.Size = UDim2.new(0.9, 0, 0, 40)
+    Button.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    UICorner_Button.Parent = Button
+    
+    Button.MouseButton1Click:Connect(onClick)
+end
+
+-- Adding Infinite Jump Button
+createButton(ScrollingFrame, "Infinite Jump", function()
+    local player = game.Players.LocalPlayer
+    player.Character.Humanoid.JumpPower = 50 -- Example jump power; set as needed
+end)
+
+-- Adding Noclip Button
+createButton(ScrollingFrame, "Noclip", function()
+    local player = game.Players.LocalPlayer
+    if player.Character then
+        player.Character.HumanoidRootPart.CanCollide = not player.Character.HumanoidRootPart.CanCollide
+    end
+end)
+
+-- Adding Show Hitboxes Button
+createButton(ScrollingFrame, "Show Hitboxes", function()
+    for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+        if otherPlayer.Character and otherPlayer ~= game.Players.LocalPlayer then
+            local hitbox = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hitbox then
+                hitbox.Transparency = hitbox.Transparency == 0 and 1 or 0 -- Toggle visibility
+                hitbox.BrickColor = BrickColor.Red()
+                hitbox.Material = Enum.Material.Neon
+            end
+        end
+    end
+end)
 
 -- UI List Layout for Scrolling Frame
 local UIListLayout = Instance.new("UIListLayout")
