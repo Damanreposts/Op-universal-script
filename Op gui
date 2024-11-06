@@ -121,6 +121,16 @@ createInputSection(ScrollingFrame, "Gravity", "Default: 196.2", "Set Gravity", f
     end
 end)
 
+createInputSection(ScrollingFrame, "Teleport to Player", "Enter username", "Teleport To", function(value)
+    local targetPlayer = game.Players:FindFirstChild(value)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local player = game.Players.LocalPlayer
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+        end
+    end
+end)
+
 local function createButtonOnlySection(parent, buttonText, onClick)
     local ButtonFrame = Instance.new("Frame")
     local Button = Instance.new("TextButton")
