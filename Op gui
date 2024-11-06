@@ -152,38 +152,75 @@ createInputSection(ScrollingFrame, "Teleport to Player", "Enter username", "Tele
     end
 end)
 
-createInputSection(ScrollingFrame, "Infinite Jump", "", "Enable Infinite Jump", function(value)
-    local player = game.Players.LocalPlayer
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.JumpHeight = 100
+-- Infinite Jump Button
+local infiniteJumpEnabled = false
+local infiniteJumpButton = Instance.new("TextButton")
+infiniteJumpButton.Parent = ScrollingFrame
+infiniteJumpButton.Size = UDim2.new(1, -20, 0, 30)
+infiniteJumpButton.Position = UDim2.new(0, 10, 0, 250)
+infiniteJumpButton.Text = "Toggle Infinite Jump"
+infiniteJumpButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+UICorner_Button.Parent = infiniteJumpButton
+
+infiniteJumpButton.MouseButton1Click:Connect(function()
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    if infiniteJumpEnabled then
+        local player = game.Players.LocalPlayer
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpHeight = 100
+        end
+    else
+        local player = game.Players.LocalPlayer
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            player.Character.Humanoid.JumpHeight = 7.2
+        end
     end
 end)
 
-createInputSection(ScrollingFrame, "Noclip", "", "Enable Noclip", function(value)
+-- Noclip Button
+local noclipEnabled = false
+local noclipButton = Instance.new("TextButton")
+noclipButton.Parent = ScrollingFrame
+noclipButton.Size = UDim2.new(1, -20, 0, 30)
+noclipButton.Position = UDim2.new(0, 10, 0, 290)
+noclipButton.Text = "Toggle Noclip"
+noclipButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+UICorner_Button.Parent = noclipButton
+
+noclipButton.MouseButton1Click:Connect(function()
+    noclipEnabled = not noclipEnabled
     local player = game.Players.LocalPlayer
     local character = player.Character
     if character then
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            humanoidRootPart.CanCollide = false
+        local humanoid = character:FindFirstChild("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = noclipEnabled
         end
     end
 end)
 
-createInputSection(ScrollingFrame, "Show Hitboxes", "", "Toggle Hitboxes", function(value)
-    for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local hitbox = player.Character:FindFirstChild("HumanoidRootPart")
-            if hitbox then
-                hitbox.Transparency = hitbox.Transparency == 0 and 1 or 0
-                hitbox.BrickColor = BrickColor.Red()
-                hitbox.Material = Enum.Material.Neon
-            end
+-- Show Hitboxes Button
+local hitboxVisible = false
+local hitboxButton = Instance.new("TextButton")
+hitboxButton.Parent = ScrollingFrame
+hitboxButton.Size = UDim2.new(1, -20, 0, 30)
+hitboxButton.Position = UDim2.new(0, 10, 0, 330)
+hitboxButton.Text = "Toggle Show Hitboxes"
+hitboxButton.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+UICorner_Button.Parent = hitboxButton
+
+hitboxButton.MouseButton1Click:Connect(function()
+    hitboxVisible = not hitboxVisible
+    local player = game.Players.LocalPlayer
+    for _, targetPlayer in pairs(game.Players:GetPlayers()) do
+        if hitboxVisible and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local box = Instance.new("Part")
+            box.Size = targetPlayer.Character.HumanoidRootPart.Size
+            box.Position = targetPlayer.Character.HumanoidRootPart.Position
+            box.Anchored = true
+            box.Transparency = 0.5
+            box.Color = Color3.fromRGB(255, 0, 0)
+            box.Parent = game.Workspace
         end
     end
 end)
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Parent = ScrollingFrame
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 10)
