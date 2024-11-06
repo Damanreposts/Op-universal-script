@@ -7,6 +7,7 @@ local CloseButton = Instance.new("TextButton")
 local UICorner_CloseButton = Instance.new("UICorner")
 local ScrollingFrame = Instance.new("ScrollingFrame")
 local TitleLabel = Instance.new("TextLabel")
+local UICorner_ScrollingFrame = Instance.new("UICorner")
 
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
@@ -34,6 +35,7 @@ ScrollingFrame.Size = UDim2.new(1, -20, 1, -90)
 ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
 ScrollingFrame.ScrollBarThickness = 8
+UICorner_ScrollingFrame.Parent = ScrollingFrame
 
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ScreenGui
@@ -172,7 +174,7 @@ infiniteJumpButton.MouseButton1Click:Connect(function()
     else
         local player = game.Players.LocalPlayer
         if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.JumpHeight = 7.2
+            player.Character.Humanoid.JumpHeight = 50
         end
     end
 end)
