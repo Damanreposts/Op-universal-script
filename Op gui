@@ -8,11 +8,9 @@ local UICorner_CloseButton = Instance.new("UICorner")
 local ScrollingFrame = Instance.new("ScrollingFrame")
 local TitleLabel = Instance.new("TextLabel")
 
--- Ensure the GUI persists even after death
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Main GUI Frame
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -20,10 +18,9 @@ MainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
 MainFrame.Size = UDim2.new(0, 400, 0, 500)
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.Visible = false -- Starts hidden
+MainFrame.Visible = false
 UICorner_MainFrame.Parent = MainFrame
 
--- Title label
 TitleLabel.Parent = MainFrame
 TitleLabel.Text = "Bored Script 3000"
 TitleLabel.Position = UDim2.new(0, 0, 0, 5)
@@ -32,14 +29,12 @@ TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleLabel.TextSize = 20
 TitleLabel.BackgroundTransparency = 1
 
--- Scrolling frame for content
 ScrollingFrame.Parent = MainFrame
 ScrollingFrame.Size = UDim2.new(1, -20, 1, -90)
 ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
 ScrollingFrame.ScrollBarThickness = 8
 
--- Toggle Button
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ScreenGui
 ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
@@ -53,7 +48,6 @@ ToggleButton.MouseButton1Click:Connect(function()
     ToggleButton.Text = MainFrame.Visible and "Close GUI" or "Open GUI"
 end)
 
--- Close Button inside Main GUI
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = MainFrame
 CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
@@ -67,7 +61,6 @@ CloseButton.MouseButton1Click:Connect(function()
     ToggleButton.Text = "Open GUI"
 end)
 
--- Helper function to create input sections
 local function createInputSection(parent, labelText, placeholderText, buttonText, onClick)
     local Frame = Instance.new("Frame")
     local UICorner_Frame = Instance.new("UICorner")
@@ -108,8 +101,6 @@ local function createInputSection(parent, labelText, placeholderText, buttonText
     end)
 end
 
--- Creating input sections for each functionality as before
-
 createInputSection(ScrollingFrame, "Hitbox Size", "Enter hitbox size", "Expand Hitbox", function(value)
     local newSize = tonumber(value)
     if newSize and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -149,51 +140,42 @@ createInputSection(ScrollingFrame, "Gravity", "Default: 196.2", "Set Gravity", f
 end)
 
 createInputSection(ScrollingFrame, "Teleport to Player", "Enter username", "Teleport To", function(value)
-    local targetPlayer = game.Players:FindFirstChild(value)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local player = game.Players.LocalPlayer
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+    local searchName = value:lower()
+    local player = game.Players.LocalPlayer
+    for _, targetPlayer in pairs(game.Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Name:lower():find(searchName) == 1 then
+            if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+                break
+            end
         end
     end
 end)
 
--- Function to create standalone buttons
-local function createButton(parent, buttonText, onClick)
-    local Button = Instance.new("TextButton")
-    local UICorner_Button = Instance.new("UICorner")
-    
-    Button.Parent = parent
-    Button.Text = buttonText
-    Button.Size = UDim2.new(0.9, 0, 0, 40)
-    Button.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    UICorner_Button.Parent = Button
-    
-    Button.MouseButton1Click:Connect(onClick)
-end
-
--- Adding Infinite Jump Button
-createButton(ScrollingFrame, "Infinite Jump", function()
+createInputSection(ScrollingFrame, "Infinite Jump", "", "Enable Infinite Jump", function(value)
     local player = game.Players.LocalPlayer
-    player.Character.Humanoid.JumpPower = 50 -- Example jump power; set as needed
-end)
-
--- Adding Noclip Button
-createButton(ScrollingFrame, "Noclip", function()
-    local player = game.Players.LocalPlayer
-    if player.Character then
-        player.Character.HumanoidRootPart.CanCollide = not player.Character.HumanoidRootPart.CanCollide
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        player.Character.Humanoid.JumpHeight = 100
     end
 end)
 
--- Adding Show Hitboxes Button
-createButton(ScrollingFrame, "Show Hitboxes", function()
-    for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
-        if otherPlayer.Character and otherPlayer ~= game.Players.LocalPlayer then
-            local hitbox = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+createInputSection(ScrollingFrame, "Noclip", "", "Enable Noclip", function(value)
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    if character then
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            humanoidRootPart.CanCollide = false
+        end
+    end
+end)
+
+createInputSection(ScrollingFrame, "Show Hitboxes", "", "Toggle Hitboxes", function(value)
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hitbox = player.Character:FindFirstChild("HumanoidRootPart")
             if hitbox then
-                hitbox.Transparency = hitbox.Transparency == 0 and 1 or 0 -- Toggle visibility
+                hitbox.Transparency = hitbox.Transparency == 0 and 1 or 0
                 hitbox.BrickColor = BrickColor.Red()
                 hitbox.Material = Enum.Material.Neon
             end
@@ -201,7 +183,6 @@ createButton(ScrollingFrame, "Show Hitboxes", function()
     end
 end)
 
--- UI List Layout for Scrolling Frame
 local UIListLayout = Instance.new("UIListLayout")
 UIListLayout.Parent = ScrollingFrame
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
