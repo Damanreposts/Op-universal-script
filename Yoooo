@@ -24,7 +24,6 @@ end
 
 -- Simple system message (uses SetCore)
 local function Notify(title, message)
-    -- Compose a single-line message
     local text = (title and ("[" .. tostring(title) .. "] ") or "") .. tostring(message)
     pcall(function()
         StarterGui:SetCore("ChatMakeSystemMessage", {
@@ -37,16 +36,13 @@ local function Notify(title, message)
 end
 
 -- OrionLib table
-local OrionLib = {}
-do
-    -- Root ScreenGui
+local OrionLib = {} do
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "OrionLib_ScreenGui"
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.DisplayOrder = 999
     ScreenGui.Parent = parentGui
 
-    -- Main frame
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 500, 0, 350)
@@ -60,7 +56,6 @@ do
     UICorner_MainFrame.CornerRadius = UDim.new(0, 8)
     UICorner_MainFrame.Parent = MainFrame
 
-    -- TitleBar
     local TitleBar = Instance.new("Frame")
     TitleBar.Name = "TitleBar"
     TitleBar.Size = UDim2.new(1, 0, 0, 30)
@@ -84,7 +79,6 @@ do
     TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
     TitleLabel.Parent = TitleBar
 
-    -- Close button
     local CloseButton = Instance.new("TextButton")
     CloseButton.Name = "CloseButton"
     CloseButton.Size = UDim2.new(0, 30, 1, 0)
@@ -97,7 +91,6 @@ do
     CloseButton.TextSize = 18
     CloseButton.Parent = TitleBar
 
-    -- Visual hover for close button (tween background color)
     CloseButton.MouseEnter:Connect(function()
         tween(CloseButton, {BackgroundTransparency = 0}, 0.15)
     end)
@@ -108,7 +101,6 @@ do
         ScreenGui:Destroy()
     end)
 
-    -- Content container
     local ContentFrame = Instance.new("Frame")
     ContentFrame.Name = "ContentFrame"
     ContentFrame.Size = UDim2.new(1, -10, 1, -40)
@@ -117,7 +109,6 @@ do
     ContentFrame.BorderSizePixel = 0
     ContentFrame.Parent = MainFrame
 
-    -- Scrolling frame and layout
     local ScrollingFrame = Instance.new("ScrollingFrame")
     ScrollingFrame.Name = "ScrollingFrame"
     ScrollingFrame.Size = UDim2.new(1, 0, 1, 0)
@@ -138,7 +129,6 @@ do
     UIListLayout.Padding = UDim.new(0, 8)
     UIListLayout.Parent = ScrollingFrame
 
-    -- Keep references in OrionLib
     OrionLib.ScreenGui = ScreenGui
     OrionLib.MainFrame = MainFrame
     OrionLib.TitleBar = TitleBar
@@ -148,10 +138,11 @@ do
     OrionLib.ScrollingFrame = ScrollingFrame
     OrionLib.UIListLayout = UIListLayout
 
-    -- Dragging logic (works for mouse & touch)
+    -- ======= FIXED DRAGGING =======
     local dragging = false
     local dragStart = Vector2.new()
     local startPos = Vector2.new()
+
     TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -164,6 +155,7 @@ do
             end)
         end
     end)
+
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
@@ -172,7 +164,7 @@ do
         end
     end)
 
-    -- Section factory
+    -- ======= Section Factory & Components =======
     local function createSection(name)
         local SectionFrame = Instance.new("Frame")
         SectionFrame.Name = name .. "Section"
@@ -197,7 +189,6 @@ do
         SectionLabel.TextXAlignment = Enum.TextXAlignment.Left
         SectionLabel.Parent = SectionFrame
 
-        -- Content container below the section (adds its own height to layout)
         local Content = Instance.new("Frame")
         Content.Name = "Content"
         Content.Size = UDim2.new(1, -20, 0, 0)
@@ -212,28 +203,19 @@ do
         ContentLayout.Padding = UDim.new(0, 6)
         ContentLayout.Parent = Content
 
-        local UICorner_Content = Instance.new("UICorner")
-        UICorner_Content.CornerRadius = UDim.new(0, 6)
-        UICorner_Content.Parent = Content
-
-        -- Keep Content height updated based on children
         local function updateSectionSize()
-            -- Use AbsoluteContentSize of layout if available
             local absoluteY = 0
             if ContentLayout and ContentLayout.AbsoluteContentSize then
                 absoluteY = ContentLayout.AbsoluteContentSize.Y
             end
-            -- set Content size, add small padding
             Content.Size = UDim2.new(1, 0, 0, absoluteY)
-            -- update parent section size to include content + label
             SectionFrame.Size = UDim2.new(1, -20, 0, 28 + 6 + absoluteY)
-            -- Update overall scrolling canvas
             ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 12)
         end
+
         ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateSectionSize)
         updateSectionSize()
 
-        -- Component creators for section
         local sectionAPI = {}
 
         function sectionAPI:AddToggle(text, defaultValue, callback)
@@ -256,7 +238,6 @@ do
             local ToggleButton = Instance.new("Frame")
             ToggleButton.Size = UDim2.new(0, 36, 0, 18)
             ToggleButton.Position = UDim2.new(1, -42, 0.5, -9)
-            ToggleButton.AnchorPoint = Vector2.new(0, 0)
             ToggleButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
             ToggleButton.BorderSizePixel = 0
             ToggleButton.Parent = ToggleFrame
@@ -268,7 +249,8 @@ do
             Knob.BorderSizePixel = 0
             Knob.Parent = ToggleButton
             local UICorner_Knob = Instance.new("UICorner")
-            UICorner_Knob.CornerRadius = UDim.new(1,0); UICorner_Knob.Parent = Knob
+            UICorner_Knob.CornerRadius = UDim.new(1,0)
+            UICorner_Knob.Parent = Knob
 
             local state = not not defaultValue
             local function refresh()
@@ -281,8 +263,6 @@ do
                 end
             end
 
-            ToggleButton.MouseButton1Click:Connect(function() end) -- placeholder to keep compatibility with touch/mouse click? Not clickable by default
-            -- Make clickable via a transparent button
             local ClickZone = Instance.new("TextButton")
             ClickZone.Size = UDim2.new(1,0,1,0)
             ClickZone.BackgroundTransparency = 1
@@ -382,7 +362,6 @@ do
         }
     end
 
-    -- Public API
     function OrionLib:SetTitle(text)
         TitleLabel.Text = tostring(text or "Orion Library")
     end
@@ -398,89 +377,6 @@ do
     end
 end
 
--- ========== Main script usage (AI controls) ==========
-local ChatService = game:GetService("Chat")
-local HttpService = game:GetService("HttpService")
-
-local GeminiAPIKey = ""
-local AIChatEnabled = false
-local PublicAIEnabled = false
-local ChattedConnection = nil
-
--- Simulated AI response (client-side safe)
-local function GetAIResponse(prompt)
-    prompt = (prompt or ""):lower()
-    if prompt:find("hello") or prompt:find("hi") then
-        return "Hello there! How can I assist you today?"
-    elseif prompt:find("name") then
-        return "I'm a small AI assistant simulated locally."
-    elseif prompt:find("how are you") then
-        return "I'm doing great, thanks!"
-    elseif prompt:find("what's 5x5") or prompt:find("5x5") then
-        return "5 times 5 is 25."
-    elseif prompt:find("joke") then
-        return "Why don't scientists trust atoms? Because they make up everything!"
-    else
-        return "Sorry, I don't know that yet. Try another question."
-    end
-end
-
--- Set up initial GUI for API key input + AI settings
-OrionLib:SetTitle("Gemini AI API Setup")
-local setupSection = OrionLib:AddSection("API Key Input")
-
-local apiKeyFrame, apiKeyBox = setupSection:AddTextBox("Gemini API Key", "Paste your Gemini API Key here", function(txt)
-    -- no-op on enter; we validate on submit button
-end)
-
-setupSection:AddButton("Submit API Key", function()
-    local key = tostring(apiKeyBox.Text or ""):gsub("%s+", "")
-    if #key >= 10 then
-        GeminiAPIKey = key
-        Notify("API Key", "API Key saved (client-side). Opening AI controls...")
-        -- Build the AI controls window
-        OrionLib:SetTitle("Gemini AI Controls")
-        local aiSection = OrionLib:AddSection("AI Settings")
-
-        aiSection:AddToggle("Enable AI Chat", AIChatEnabled, function(state)
-            AIChatEnabled = state
-            Notify("AI Status", "AI Chat is now " .. (AIChatEnabled and "ENABLED" or "DISABLED"))
-        end)
-
-        aiSection:AddToggle("Public AI Chat", PublicAIEnabled, function(state)
-            PublicAIEnabled = state
-            Notify("AI Status", "Public AI Chat: " .. (PublicAIEnabled and "ENABLED" or "DISABLED"))
-        end)
-
-        -- Disconnect existing
-        if ChattedConnection then
-            pcall(function() ChattedConnection:Disconnect() end)
-            ChattedConnection = nil
-        end
-
-        -- Chat listener (client-side): use /ai <question>
-        ChattedConnection = LocalPlayer.Chatted:Connect(function(message)
-            if not AIChatEnabled then return end
-            local question = message:match("^/ai%s+(.+)$")
-            if not question then return end
-
-            -- Simulate thinking
-            Notify("Gemini AI", "Thinking...")
-            task.wait(math.random(1,2))
-
-            local response = GetAIResponse(question)
-            -- Send response as system chat message
-            pcall(function()
-                ChatService:Chat(LocalPlayer, response, Enum.ChatColor.Blue)
-            end)
-        end)
-    else
-        Notify("API Key Error", "Enter a valid API key (>=10 chars).")
-    end
-end)
-
--- Done. Show a ready notification.
-Notify("OrionLib", "UI loaded. Use /ai <question> after enabling AI Chat.")
-
--- Return OrionLib in case script loader expects it
+-- ======= Main script usage =======
+Notify("OrionLib", "UI loaded! Drag the top bar to move.")
 return OrionLib
