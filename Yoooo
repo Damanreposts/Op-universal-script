@@ -1,0 +1,286 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+-- Configuration for the GUI's appearance and behavior
+local CONFIG = {
+    GUI_SIZE = UDim2.new(0.3, 0, 0.5, 0), -- Relative size of the main menu frame
+    GUI_POSITION = UDim2.new(0.5, 0, 0.5, 0), -- Centered position for the main menu frame
+    TOP_BAR_HEIGHT_OFFSET = 30, -- Absolute pixel height for the top bar
+    ANIMATION_DURATION = 0.25, -- Duration of opening/closing/minimizing animations
+    CORNER_RADIUS = UDim.new(0, 8), -- Corner radius for the main frame and minimized button
+    BUTTON_CORNER_RADIUS = UDim.new(0, 4), -- Corner radius for the X and - buttons
+    MINIMIZED_BUTTON_SIZE = UDim2.new(0, 120, 0, 30), -- Size of the button that appears when minimized
+    MINIMIZED_BUTTON_POSITION = UDim2.new(0.01, 0, 0.01, 0), -- Top-left corner position for the minimized button
+}
+
+-- Create the ScreenGui that will hold all UI elements
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomMenu"
+ScreenGui.IgnoreGuiInset = true -- Ensures GUI is not pushed down by top bar
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- For consistent Z-indexing
+ScreenGui.Parent = PlayerGui
+
+-- Main Frame: The draggable, resizable container for the menu
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 0, 0, 0) -- Starts at zero size for the opening animation
+MainFrame.Position = CONFIG.GUI_POSITION
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Ensures the frame scales from its center
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MainFrame.BorderColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 1
+MainFrame.Parent = ScreenGui
+
+-- UICorner for MainFrame to give it smooth rounded corners
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = CONFIG.CORNER_RADIUS
+UICornerMain.Parent = MainFrame
+
+-- Top Bar: Used for dragging and holding control buttons
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, CONFIG.TOP_BAR_HEIGHT_OFFSET)
+TopBar.Position = UDim2.new(0, 0, 0, 0)
+TopBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TopBar.Parent = MainFrame
+
+-- UIStroke for a subtle border on the TopBar
+local UIStrokeTopBar = Instance.new("UIStroke")
+UIStrokeTopBar.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+UIStrokeTopBar.Color = Color3.fromRGB(70, 70, 70)
+UIStrokeTopBar.Thickness = 1
+UIStrokeTopBar.Parent = TopBar
+
+-- Title Label for the menu
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "Title"
+-- Size is adjusted to leave space for the minimize and close buttons
+TitleLabel.Size = UDim2.new(1, -(CONFIG.TOP_BAR_HEIGHT_OFFSET * 2), 1, 0) 
+TitleLabel.Position = UDim2.new(0, 0, 0, 0)
+TitleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextSize = 18
+TitleLabel.Text = "Custom Menu"
+TitleLabel.TextScaled = false
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.TextPadding = UDim.new(0, 10)
+TitleLabel.Parent = TopBar
+
+-- Minimize Button (-)
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+-- Size and position are calculated to fit nicely in the top bar
+MinimizeButton.Size = UDim2.new(0, CONFIG.TOP_BAR_HEIGHT_OFFSET - 5, 1, 0) 
+MinimizeButton.Position = UDim2.new(1, -(CONFIG.TOP_BAR_HEIGHT_OFFSET - 5) * 2 - 5, 0, 0)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextSize = 18
+MinimizeButton.Text = "-"
+MinimizeButton.Parent = TopBar
+
+-- UICorner for the Minimize Button
+local UICornerMinimize = Instance.new("UICorner")
+UICornerMinimize.CornerRadius = CONFIG.BUTTON_CORNER_RADIUS
+UICornerMinimize.Parent = MinimizeButton
+
+-- Close Button (X)
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+-- Size and position are calculated to fit nicely in the top bar, to the right of minimize
+CloseButton.Size = UDim2.new(0, CONFIG.TOP_BAR_HEIGHT_OFFSET - 5, 1, 0)
+CloseButton.Position = UDim2.new(1, -(CONFIG.TOP_BAR_HEIGHT_OFFSET - 5) - 5, 0, 0)
+CloseButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0) -- Red color for close button
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 18
+CloseButton.Text = "X"
+CloseButton.Parent = TopBar
+
+-- UICorner for the Close Button
+local UICornerClose = Instance.new("UICorner")
+UICornerClose.CornerRadius = CONFIG.BUTTON_CORNER_RADIUS
+UICornerClose.Parent = CloseButton
+
+-- Minimized Reopen Button: Appears when the main menu is minimized
+local MinimizedReopenButton = Instance.new("TextButton")
+MinimizedReopenButton.Name = "MinimizedReopenButton"
+MinimizedReopenButton.Size = CONFIG.MINIMIZED_BUTTON_SIZE
+MinimizedReopenButton.Position = CONFIG.MINIMIZED_BUTTON_POSITION
+MinimizedReopenButton.AnchorPoint = Vector2.new(0, 0)
+MinimizedReopenButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MinimizedReopenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizedReopenButton.Font = Enum.Font.GothamBold
+MinimizedReopenButton.TextSize = 16
+MinimizedReopenButton.Text = "Open Menu"
+MinimizedReopenButton.Visible = false -- Hidden by default
+MinimizedReopenButton.Parent = ScreenGui
+
+-- UICorner for the Minimized Reopen Button
+local UICornerMinimizedReopen = Instance.new("UICorner")
+UICornerMinimizedReopen.CornerRadius = CONFIG.CORNER_RADIUS
+UICornerMinimizedReopen.Parent = MinimizedReopenButton
+
+-- Drag Functionality for the TopBar
+local dragging = false
+local dragInput = nil
+local dragStart = nil
+local startPos = nil
+
+-- Function to update the GUI's position during a drag
+local function updateDrag(input)
+    if dragging and dragInput == input then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end
+
+-- Event handler for when dragging starts
+TopBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragInput = input
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+-- Event handler for when dragging ends
+TopBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        dragInput = nil
+    end
+end)
+
+-- Continuously update drag position on RenderStepped for smooth dragging
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        updateDrag(dragInput)
+    end
+end)
+
+-- Animation Functions using TweenService
+local isAnimating = false -- Flag to prevent multiple animations at once
+local currentTween = nil -- Stores the current tween to allow cancellation
+
+-- Helper function to create a Tween
+local function createTween(object, properties, duration, easingStyle, easingDirection)
+    local tweenInfo = TweenInfo.new(duration, easingStyle, easingDirection)
+    return TweenService:Create(object, tweenInfo, properties)
+end
+
+-- Helper function to play a Tween, canceling any existing one
+local function playTween(tweenInstance)
+    if currentTween then
+        currentTween:Cancel()
+    end
+    currentTween = tweenInstance
+    currentTween:Play()
+    currentTween.Completed:Wait() -- Yield until tween completes
+    currentTween = nil
+end
+
+-- Function to open the main GUI with a smooth animation
+local function openGUI()
+    if isAnimating then return end
+    isAnimating = true
+
+    MainFrame.Visible = true
+    -- Ensure the frame starts at zero size for the smooth opening effect
+    MainFrame.Size = UDim2.new(0,0,0,0)
+    
+    local openTween = createTween(MainFrame, {Size = CONFIG.GUI_SIZE}, CONFIG.ANIMATION_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    playTween(openTween)
+    
+    isAnimating = false
+end
+
+-- Function to close the main GUI with a smooth animation
+local function closeGUI(destroyAfterTween)
+    if isAnimating then return end
+    isAnimating = true
+    
+    local closeTween = createTween(MainFrame, {Size = UDim2.new(0, 0, 0, 0)}, CONFIG.ANIMATION_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    playTween(closeTween)
+    
+    MainFrame.Visible = false
+    isAnimating = false
+    
+    if destroyAfterTween then
+        ScreenGui:Destroy() -- Destroy the entire ScreenGui if requested
+    end
+end
+
+-- Function to minimize the main GUI to a button with a smooth animation
+local function minimizeGUI()
+    if isAnimating then return end
+    isAnimating = true
+
+    local minimizeTween = createTween(MainFrame, {Size = UDim2.new(0, 0, 0, 0)}, CONFIG.ANIMATION_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    playTween(minimizeTween)
+
+    MainFrame.Visible = false
+    MinimizedReopenButton.Visible = true -- Show the reopen button
+    isAnimating = false
+end
+
+-- Function to reopen the GUI from its minimized state
+local function reopenGUI()
+    if isAnimating then return end
+    isAnimating = true
+
+    MinimizedReopenButton.Visible = false -- Hide the reopen button
+    openGUI() -- Use the existing open animation
+    isAnimating = false
+end
+
+-- Connect button click events to their respective functions
+CloseButton.MouseButton1Click:Connect(function()
+    closeGUI(true) -- Pass true to destroy the ScreenGui after closing
+end)
+
+MinimizeButton.MouseButton1Click:Connect(minimizeGUI)
+MinimizedReopenButton.MouseButton1Click:Connect(reopenGUI)
+
+-- Initial state: Open the GUI with its smooth animation when the script runs
+openGUI()
+
+-- Example Content Frame: This is where you would put your actual menu options.
+-- It automatically adjusts its size to fill the space below the top bar.
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, 0, 1, -CONFIG.TOP_BAR_HEIGHT_OFFSET)
+ContentFrame.Position = UDim2.new(0, 0, 0, CONFIG.TOP_BAR_HEIGHT_OFFSET)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainFrame
+
+-- Example Content: A simple text label inside the ContentFrame
+local ExampleLabel = Instance.new("TextLabel")
+ExampleLabel.Size = UDim2.new(1, 0, 1, 0)
+ExampleLabel.BackgroundTransparency = 1
+ExampleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+ExampleLabel.Font = Enum.Font.SourceSans
+ExampleLabel.TextSize = 20
+ExampleLabel.Text = "Welcome to the Custom Menu!\nAdd your features here."
+ExampleLabel.TextWrapped = true
+ExampleLabel.Parent = ContentFrame
+
+-- You can add more UI elements (buttons, toggles, sliders, etc.) to the ContentFrame.
+-- For example:
+-- local MyButton = Instance.new("TextButton")
+-- MyButton.Size = UDim2.new(0.8, 0, 0.1, 0)
+-- MyButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+-- MyButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+-- MyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+-- MyButton.Text = "My Feature"
+-- MyButton.Parent = ContentFrame
+-- local MyButtonCorner = Instance.new("UICorner")
+-- MyButtonCorner.CornerRadius = UDim.new(0, 6)
+-- MyButtonCorner.Parent = MyButton
