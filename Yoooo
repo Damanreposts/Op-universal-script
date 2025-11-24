@@ -44,13 +44,13 @@ local OrionLib = {} do
     ScreenGui.Parent = parentGui
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-    MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Parent = ScreenGui
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 500, 0, 350)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- make sure this is set
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0) -- center of the screen
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
 
     local UICorner_MainFrame = Instance.new("UICorner")
     UICorner_MainFrame.CornerRadius = UDim.new(0, 8)
