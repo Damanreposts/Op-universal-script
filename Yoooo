@@ -1,156 +1,486 @@
--- Services
+-- Orion-like UI (fixed & cleaned)
+-- Credits: Gemini AI (original), cleaned/rewritten for correctness
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
 
--- Local Player and Character references
-local LocalPlayer = Players.LocalPlayer
-local Character
-local Humanoid
-local HumanoidRootPart
-local Camera = game.Workspace.CurrentCamera
+-- Safe parent: prefer PlayerGui; change to CoreGui if your executor supports it
+local parentGui = (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")) and LocalPlayer:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
 
--- Function to safely get character parts, handling respawns
-local function getCharacterParts()
-    Character = LocalPlayer.Character
-    if not Character or not Character:IsDescendantOf(game.Workspace) then
-        Character = LocalPlayer.CharacterAdded:Wait()
+-- Simple tween helper
+local function tween(object, props, duration, style, direction, onComplete)
+    local info = TweenInfo.new(duration or 0.2, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+    local t = TweenService:Create(object, info, props)
+    t:Play()
+    if onComplete then
+        t.Completed:Connect(onComplete)
     end
-    Humanoid = Character:WaitForChild("Humanoid")
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    return t
 end
 
--- Initial call to get character parts
-getCharacterParts()
+-- Simple system message (uses SetCore)
+local function Notify(title, message)
+    -- Compose a single-line message
+    local text = (title and ("[" .. tostring(title) .. "] ") or "") .. tostring(message)
+    pcall(function()
+        StarterGui:SetCore("ChatMakeSystemMessage", {
+            Text = text,
+            Color = Color3.fromRGB(160,160,255),
+            Font = Enum.Font.SourceSansBold,
+            FontSize = Enum.FontSize.Size14
+        })
+    end)
+end
 
--- Store original walkspeed for potential restoration or reference
-local OriginalWalkSpeed = Humanoid.WalkSpeed
+-- OrionLib table
+local OrionLib = {}
+do
+    -- Root ScreenGui
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "OrionLib_ScreenGui"
+    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    ScreenGui.DisplayOrder = 999
+    ScreenGui.Parent = parentGui
 
--- Handle character respawns to ensure features continue to work
-LocalPlayer.CharacterAdded:Connect(function(newChar)
-    Character = newChar
-    Humanoid = newChar:WaitForChild("Humanoid")
-    HumanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
-    
-    -- If fly was active, re-enable it on the new character
-    if Flying then
-        Humanoid.PlatformStand = true
-        Humanoid.AutoRotate = false
+    -- Main frame
+    local MainFrame = Instance.new("Frame")
+    MainFrame.Name = "MainFrame"
+    MainFrame.Size = UDim2.new(0, 500, 0, 350)
+    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+    MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    MainFrame.BorderSizePixel = 0
+    MainFrame.Parent = ScreenGui
+
+    local UICorner_MainFrame = Instance.new("UICorner")
+    UICorner_MainFrame.CornerRadius = UDim.new(0, 8)
+    UICorner_MainFrame.Parent = MainFrame
+
+    -- TitleBar
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Name = "TitleBar"
+    TitleBar.Size = UDim2.new(1, 0, 0, 30)
+    TitleBar.Position = UDim2.new(0, 0, 0, 0)
+    TitleBar.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Parent = MainFrame
+
+    local UICorner_TitleBar = Instance.new("UICorner")
+    UICorner_TitleBar.CornerRadius = UDim.new(0, 8)
+    UICorner_TitleBar.Parent = TitleBar
+
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "TitleLabel"
+    TitleLabel.Size = UDim2.new(1, -60, 1, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Text = "Orion Library"
+    TitleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TitleLabel.TextSize = 18
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
+    TitleLabel.Parent = TitleBar
+
+    -- Close button
+    local CloseButton = Instance.new("TextButton")
+    CloseButton.Name = "CloseButton"
+    CloseButton.Size = UDim2.new(0, 30, 1, 0)
+    CloseButton.Position = UDim2.new(1, -30, 0, 0)
+    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    CloseButton.BackgroundTransparency = 0.8
+    CloseButton.Font = Enum.Font.GothamBold
+    CloseButton.Text = "X"
+    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    CloseButton.TextSize = 18
+    CloseButton.Parent = TitleBar
+
+    -- Visual hover for close button (tween background color)
+    CloseButton.MouseEnter:Connect(function()
+        tween(CloseButton, {BackgroundTransparency = 0}, 0.15)
+    end)
+    CloseButton.MouseLeave:Connect(function()
+        tween(CloseButton, {BackgroundTransparency = 0.8}, 0.15)
+    end)
+    CloseButton.MouseButton1Click:Connect(function()
+        ScreenGui:Destroy()
+    end)
+
+    -- Content container
+    local ContentFrame = Instance.new("Frame")
+    ContentFrame.Name = "ContentFrame"
+    ContentFrame.Size = UDim2.new(1, -10, 1, -40)
+    ContentFrame.Position = UDim2.new(0, 5, 0, 35)
+    ContentFrame.BackgroundTransparency = 1
+    ContentFrame.BorderSizePixel = 0
+    ContentFrame.Parent = MainFrame
+
+    -- Scrolling frame and layout
+    local ScrollingFrame = Instance.new("ScrollingFrame")
+    ScrollingFrame.Name = "ScrollingFrame"
+    ScrollingFrame.Size = UDim2.new(1, 0, 1, 0)
+    ScrollingFrame.Position = UDim2.new(0, 0, 0, 0)
+    ScrollingFrame.BackgroundTransparency = 1
+    ScrollingFrame.BorderSizePixel = 0
+    ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60)
+    ScrollingFrame.ScrollBarThickness = 6
+    ScrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    ScrollingFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+    ScrollingFrame.Parent = ContentFrame
+
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.Name = "UIListLayout"
+    UIListLayout.FillDirection = Enum.FillDirection.Vertical
+    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    UIListLayout.Padding = UDim.new(0, 8)
+    UIListLayout.Parent = ScrollingFrame
+
+    -- Keep references in OrionLib
+    OrionLib.ScreenGui = ScreenGui
+    OrionLib.MainFrame = MainFrame
+    OrionLib.TitleBar = TitleBar
+    OrionLib.TitleLabel = TitleLabel
+    OrionLib.CloseButton = CloseButton
+    OrionLib.ContentFrame = ContentFrame
+    OrionLib.ScrollingFrame = ScrollingFrame
+    OrionLib.UIListLayout = UIListLayout
+
+    -- Dragging logic (works for mouse & touch)
+    local dragging = false
+    local dragStart = Vector2.new()
+    local startPos = Vector2.new()
+    TitleBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Vector2.new(MainFrame.AbsolutePosition.X, MainFrame.AbsolutePosition.Y)
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            local newPos = startPos + delta
+            MainFrame.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
+        end
+    end)
+
+    -- Section factory
+    local function createSection(name)
+        local SectionFrame = Instance.new("Frame")
+        SectionFrame.Name = name .. "Section"
+        SectionFrame.Size = UDim2.new(1, -20, 0, 28)
+        SectionFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        SectionFrame.BorderSizePixel = 0
+        SectionFrame.Parent = ScrollingFrame
+
+        local UICorner_Section = Instance.new("UICorner")
+        UICorner_Section.CornerRadius = UDim.new(0, 6)
+        UICorner_Section.Parent = SectionFrame
+
+        local SectionLabel = Instance.new("TextLabel")
+        SectionLabel.Name = "SectionLabel"
+        SectionLabel.Size = UDim2.new(1, -10, 1, 0)
+        SectionLabel.Position = UDim2.new(0, 10, 0, 0)
+        SectionLabel.BackgroundTransparency = 1
+        SectionLabel.Font = Enum.Font.GothamBold
+        SectionLabel.Text = name
+        SectionLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        SectionLabel.TextSize = 14
+        SectionLabel.TextXAlignment = Enum.TextXAlignment.Left
+        SectionLabel.Parent = SectionFrame
+
+        -- Content container below the section (adds its own height to layout)
+        local Content = Instance.new("Frame")
+        Content.Name = "Content"
+        Content.Size = UDim2.new(1, -20, 0, 0)
+        Content.Position = UDim2.new(0, 10, 1, 6)
+        Content.BackgroundTransparency = 1
+        Content.Parent = SectionFrame
+
+        local ContentLayout = Instance.new("UIListLayout")
+        ContentLayout.FillDirection = Enum.FillDirection.Vertical
+        ContentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        ContentLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+        ContentLayout.Padding = UDim.new(0, 6)
+        ContentLayout.Parent = Content
+
+        local UICorner_Content = Instance.new("UICorner")
+        UICorner_Content.CornerRadius = UDim.new(0, 6)
+        UICorner_Content.Parent = Content
+
+        -- Keep Content height updated based on children
+        local function updateSectionSize()
+            -- Use AbsoluteContentSize of layout if available
+            local absoluteY = 0
+            if ContentLayout and ContentLayout.AbsoluteContentSize then
+                absoluteY = ContentLayout.AbsoluteContentSize.Y
+            end
+            -- set Content size, add small padding
+            Content.Size = UDim2.new(1, 0, 0, absoluteY)
+            -- update parent section size to include content + label
+            SectionFrame.Size = UDim2.new(1, -20, 0, 28 + 6 + absoluteY)
+            -- Update overall scrolling canvas
+            ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 12)
+        end
+        ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateSectionSize)
+        updateSectionSize()
+
+        -- Component creators for section
+        local sectionAPI = {}
+
+        function sectionAPI:AddToggle(text, defaultValue, callback)
+            local ToggleFrame = Instance.new("Frame")
+            ToggleFrame.Size = UDim2.new(1, 0, 0, 28)
+            ToggleFrame.BackgroundTransparency = 1
+            ToggleFrame.Parent = Content
+
+            local Label = Instance.new("TextLabel")
+            Label.Size = UDim2.new(1, -40, 1, 0)
+            Label.Position = UDim2.new(0, 6, 0, 0)
+            Label.BackgroundTransparency = 1
+            Label.Font = Enum.Font.Gotham
+            Label.Text = text
+            Label.TextColor3 = Color3.fromRGB(200,200,200)
+            Label.TextSize = 14
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Parent = ToggleFrame
+
+            local ToggleButton = Instance.new("Frame")
+            ToggleButton.Size = UDim2.new(0, 36, 0, 18)
+            ToggleButton.Position = UDim2.new(1, -42, 0.5, -9)
+            ToggleButton.AnchorPoint = Vector2.new(0, 0)
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(80,80,80)
+            ToggleButton.BorderSizePixel = 0
+            ToggleButton.Parent = ToggleFrame
+
+            local Knob = Instance.new("Frame")
+            Knob.Size = UDim2.new(0, 16, 0, 16)
+            Knob.Position = UDim2.new(0, 2, 0.5, -8)
+            Knob.BackgroundColor3 = Color3.fromRGB(220,220,220)
+            Knob.BorderSizePixel = 0
+            Knob.Parent = ToggleButton
+            local UICorner_Knob = Instance.new("UICorner")
+            UICorner_Knob.CornerRadius = UDim.new(1,0); UICorner_Knob.Parent = Knob
+
+            local state = not not defaultValue
+            local function refresh()
+                if state then
+                    tween(ToggleButton, {BackgroundColor3 = Color3.fromRGB(0,170,0)}, 0.12)
+                    tween(Knob, {Position = UDim2.new(1, -18, 0.5, -8)}, 0.12)
+                else
+                    tween(ToggleButton, {BackgroundColor3 = Color3.fromRGB(80,80,80)}, 0.12)
+                    tween(Knob, {Position = UDim2.new(0, 2, 0.5, -8)}, 0.12)
+                end
+            end
+
+            ToggleButton.MouseButton1Click:Connect(function() end) -- placeholder to keep compatibility with touch/mouse click? Not clickable by default
+            -- Make clickable via a transparent button
+            local ClickZone = Instance.new("TextButton")
+            ClickZone.Size = UDim2.new(1,0,1,0)
+            ClickZone.BackgroundTransparency = 1
+            ClickZone.Text = ""
+            ClickZone.Parent = ToggleFrame
+            ClickZone.MouseButton1Click:Connect(function()
+                state = not state
+                refresh()
+                if callback then
+                    pcall(callback, state)
+                end
+            end)
+
+            refresh()
+            if callback then
+                pcall(callback, state)
+            end
+
+            return ToggleFrame
+        end
+
+        function sectionAPI:AddTextBox(text, placeholder, callback)
+            local FrameBox = Instance.new("Frame")
+            FrameBox.Size = UDim2.new(1, 0, 0, 54)
+            FrameBox.BackgroundTransparency = 1
+            FrameBox.Parent = Content
+
+            local Label = Instance.new("TextLabel")
+            Label.Size = UDim2.new(1, -10, 0, 14)
+            Label.Position = UDim2.new(0, 5, 0, 4)
+            Label.BackgroundTransparency = 1
+            Label.Font = Enum.Font.Gotham
+            Label.Text = text
+            Label.TextColor3 = Color3.fromRGB(200,200,200)
+            Label.TextSize = 12
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Parent = FrameBox
+
+            local TextBox = Instance.new("TextBox")
+            TextBox.Size = UDim2.new(1, -10, 0, 28)
+            TextBox.Position = UDim2.new(0, 5, 0, 22)
+            TextBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+            TextBox.BorderSizePixel = 0
+            TextBox.PlaceholderText = placeholder or ""
+            TextBox.Text = ""
+            TextBox.Font = Enum.Font.Gotham
+            TextBox.TextColor3 = Color3.fromRGB(230,230,230)
+            TextBox.TextSize = 14
+            TextBox.Parent = FrameBox
+
+            local UICornerTB = Instance.new("UICorner")
+            UICornerTB.CornerRadius = UDim.new(0,6)
+            UICornerTB.Parent = TextBox
+
+            TextBox.Focused:Connect(function()
+                tween(TextBox, {BackgroundColor3 = Color3.fromRGB(66,66,66)}, 0.08)
+            end)
+            TextBox.FocusLost:Connect(function(enterPressed)
+                tween(TextBox, {BackgroundColor3 = Color3.fromRGB(50,50,50)}, 0.08)
+                if enterPressed and callback then
+                    pcall(callback, TextBox.Text)
+                end
+            end)
+
+            return FrameBox, TextBox
+        end
+
+        function sectionAPI:AddButton(text, callback)
+            local Button = Instance.new("TextButton")
+            Button.Size = UDim2.new(1, 0, 0, 32)
+            Button.BackgroundColor3 = Color3.fromRGB(60,60,60)
+            Button.BorderSizePixel = 0
+            Button.Font = Enum.Font.GothamBold
+            Button.Text = text
+            Button.TextColor3 = Color3.fromRGB(220,220,220)
+            Button.TextSize = 14
+            Button.Parent = Content
+
+            local UICornerBtn = Instance.new("UICorner")
+            UICornerBtn.CornerRadius = UDim.new(0,6)
+            UICornerBtn.Parent = Button
+
+            Button.MouseEnter:Connect(function() tween(Button, {BackgroundColor3 = Color3.fromRGB(75,75,75)}, 0.08) end)
+            Button.MouseLeave:Connect(function() tween(Button, {BackgroundColor3 = Color3.fromRGB(60,60,60)}, 0.08) end)
+            Button.MouseButton1Click:Connect(function()
+                if callback then pcall(callback) end
+            end)
+
+            return Button
+        end
+
+        return {
+            Content = Content,
+            AddToggle = sectionAPI.AddToggle,
+            AddTextBox = sectionAPI.AddTextBox,
+            AddButton = sectionAPI.AddButton
+        }
     end
-    
-    -- Apply the current walkspeed to the new character
-    Humanoid.WalkSpeed = CurrentWalkSpeed
+
+    -- Public API
+    function OrionLib:SetTitle(text)
+        TitleLabel.Text = tostring(text or "Orion Library")
+    end
+
+    function OrionLib:AddSection(name)
+        return createSection(tostring(name or "Section"))
+    end
+
+    function OrionLib:Destroy()
+        if ScreenGui then
+            pcall(function() ScreenGui:Destroy() end)
+        end
+    end
+end
+
+-- ========== Main script usage (AI controls) ==========
+local ChatService = game:GetService("Chat")
+local HttpService = game:GetService("HttpService")
+
+local GeminiAPIKey = ""
+local AIChatEnabled = false
+local PublicAIEnabled = false
+local ChattedConnection = nil
+
+-- Simulated AI response (client-side safe)
+local function GetAIResponse(prompt)
+    prompt = (prompt or ""):lower()
+    if prompt:find("hello") or prompt:find("hi") then
+        return "Hello there! How can I assist you today?"
+    elseif prompt:find("name") then
+        return "I'm a small AI assistant simulated locally."
+    elseif prompt:find("how are you") then
+        return "I'm doing great, thanks!"
+    elseif prompt:find("what's 5x5") or prompt:find("5x5") then
+        return "5 times 5 is 25."
+    elseif prompt:find("joke") then
+        return "Why don't scientists trust atoms? Because they make up everything!"
+    else
+        return "Sorry, I don't know that yet. Try another question."
+    end
+end
+
+-- Set up initial GUI for API key input + AI settings
+OrionLib:SetTitle("Gemini AI API Setup")
+local setupSection = OrionLib:AddSection("API Key Input")
+
+local apiKeyFrame, apiKeyBox = setupSection:AddTextBox("Gemini API Key", "Paste your Gemini API Key here", function(txt)
+    -- no-op on enter; we validate on submit button
 end)
 
--- Load Orion Library
-local OrionLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+setupSection:AddButton("Submit API Key", function()
+    local key = tostring(apiKeyBox.Text or ""):gsub("%s+", "")
+    if #key >= 10 then
+        GeminiAPIKey = key
+        Notify("API Key", "API Key saved (client-side). Opening AI controls...")
+        -- Build the AI controls window
+        OrionLib:SetTitle("Gemini AI Controls")
+        local aiSection = OrionLib:AddSection("AI Settings")
 
--- Create the main GUI window
-local Window = OrionLib:MakeWindow({
-    Name = "Player Utilities",
-    HidePremium = false, -- Set to true to remove the "Premium" tag
-    SaveConfig = true,  -- If true, GUI settings will be saved
-    ConfigFolder = "PlayerUtilities" -- Folder name for saved configurations
-})
+        aiSection:AddToggle("Enable AI Chat", AIChatEnabled, function(state)
+            AIChatEnabled = state
+            Notify("AI Status", "AI Chat is now " .. (AIChatEnabled and "ENABLED" or "DISABLED"))
+        end)
 
--- Create a tab for movement features
-local MainTab = Window:MakeTab({
-    Name = "Movement"
-})
+        aiSection:AddToggle("Public AI Chat", PublicAIEnabled, function(state)
+            PublicAIEnabled = state
+            Notify("AI Status", "Public AI Chat: " .. (PublicAIEnabled and "ENABLED" or "DISABLED"))
+        end)
 
--- Fly Feature variables
-local Flying = false
-local FlyConnection = nil
-local FlySpeed = 50 -- Fly speed in studs per second
-
--- Add the "Toggle Fly" button
-MainTab:AddButton({
-    Name = "Toggle Fly",
-    Callback = function()
-        Flying = not Flying -- Toggle fly state
-        if Flying then
-            getCharacterParts() -- Ensure we have the latest character parts
-            if Humanoid and HumanoidRootPart then
-                Humanoid.PlatformStand = true -- Disable physics-based movement
-                Humanoid.AutoRotate = false   -- Prevent character from rotating automatically
-                
-                -- Connect to Heartbeat for smooth, frame-rate independent movement
-                FlyConnection = RunService.Heartbeat:Connect(function(dt)
-                    -- Check if character or essential parts are still valid
-                    if not Character or not Humanoid or Humanoid.Health <= 0 or not HumanoidRootPart then
-                        -- Character died or parts are gone, stop flying
-                        Flying = false
-                        if FlyConnection then FlyConnection:Disconnect() FlyConnection = nil end
-                        getCharacterParts() -- Attempt to reset parts for next time
-                        if Humanoid then Humanoid.PlatformStand = false Humanoid.AutoRotate = true end
-                        return
-                    end
-
-                    local moveVector = Vector3.new()
-                    local camCFrame = Camera.CFrame
-
-                    -- Process movement input (W, A, S, D, Space, LeftShift)
-                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveVector += camCFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveVector -= camCFrame.LookVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveVector -= camCFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveVector += camCFrame.RightVector end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveVector += Vector3.new(0, 1, 0) end -- Move Up
-                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveVector -= Vector3.new(0, 1, 0) end -- Move Down
-
-                    -- Apply movement if there's input
-                    if moveVector.Magnitude > 0 then
-                        moveVector = moveVector.Unit * FlySpeed * dt -- Scale movement by FlySpeed (studs/sec) and delta time
-                        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + moveVector
-                    end
-                end)
-            else
-                warn("Fly: Humanoid or HumanoidRootPart not found. Cannot enable fly.")
-                Flying = false -- Reset if parts are missing
-            end
-        else
-            -- Disable fly: Disconnect the Heartbeat connection
-            if FlyConnection then
-                FlyConnection:Disconnect()
-                FlyConnection = nil
-            end
-            getCharacterParts() -- Ensure we have the latest character parts
-            if Humanoid then
-                Humanoid.PlatformStand = false -- Re-enable physics-based movement
-                Humanoid.AutoRotate = true      -- Re-enable automatic character rotation
-            end
+        -- Disconnect existing
+        if ChattedConnection then
+            pcall(function() ChattedConnection:Disconnect() end)
+            ChattedConnection = nil
         end
+
+        -- Chat listener (client-side): use /ai <question>
+        ChattedConnection = LocalPlayer.Chatted:Connect(function(message)
+            if not AIChatEnabled then return end
+            local question = message:match("^/ai%s+(.+)$")
+            if not question then return end
+
+            -- Simulate thinking
+            Notify("Gemini AI", "Thinking...")
+            task.wait(math.random(1,2))
+
+            local response = GetAIResponse(question)
+            -- Send response as system chat message
+            pcall(function()
+                ChatService:Chat(LocalPlayer, response, Enum.ChatColor.Blue)
+            end)
+        end)
+    else
+        Notify("API Key Error", "Enter a valid API key (>=10 chars).")
     end
-})
+end)
 
--- Walkspeed Feature variables
-local DefaultWalkSpeed = 16
-local CurrentWalkSpeed = DefaultWalkSpeed -- Initialize with default walkspeed
+-- Done. Show a ready notification.
+Notify("OrionLib", "UI loaded. Use /ai <question> after enabling AI Chat.")
 
--- Add the "Walkspeed" slider
-MainTab:AddSlider({
-    Name = "Walkspeed",
-    Min = 16,    -- Minimum walkspeed
-    Max = 100,   -- Maximum walkspeed
-    Default = DefaultWalkSpeed, -- Default value when GUI loads
-    Callback = function(Value)
-        CurrentWalkSpeed = Value -- Update current walkspeed variable
-        getCharacterParts()      -- Ensure we have the latest character parts
-        if Humanoid then
-            Humanoid.WalkSpeed = Value -- Apply the new walkspeed to the humanoid
-        end
-    end
-})
-
--- Apply initial walkspeed when the script loads
-getCharacterParts()
-if Humanoid then
-    Humanoid.WalkSpeed = DefaultWalkSpeed
-end
-
--- Display a notification when the script has finished loading
-OrionLib:MakeNotification({
-    Name = "Player Utilities Loaded!",
-    Content = "GUI has been loaded successfully.",
-    Image = "rbxassetid://4483345998", -- Generic Roblox icon asset ID
-    Time = 5 -- Notification display time in seconds
-})
+-- Return OrionLib in case script loader expects it
+return OrionLib
