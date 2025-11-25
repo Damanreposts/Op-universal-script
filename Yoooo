@@ -1,488 +1,158 @@
--- Gemini AI chat UI (client-side)
--- Features: smooth drag, key textbox, AI on/off toggle, public toggle, #ai <prompt> chat trigger
--- Tries multiple HTTP methods (syn.request, request, http_request, HttpService). Falls back to local simulation if blocked.
+--// UI LIB
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Name = "GeminiAI_UI"
 
+-- Centered Frame
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Frame.Size = UDim2.new(0, 260, 0, 260)
+Frame.Position = UDim2.new(0.5, -130, 0.5, -130)
+Frame.Active = true
+Frame.Draggable = false  -- we use custom dragging
+
+-- Round corners
+local UI = Instance.new("UICorner", Frame)
+UI.CornerRadius = UDim.new(0, 10)
+
+-- Title
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1,0,0,35)
+Title.BackgroundColor3 = Color3.fromRGB(35,35,35)
+Title.Text = "Gemini AI Control Panel"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+local UI2 = Instance.new("UICorner", Title)
+UI2.CornerRadius = UDim.new(0, 10)
+
+-- KEY BOX
+local KeyBox = Instance.new("TextBox", Frame)
+KeyBox.PlaceholderText = "Enter Gemini Key"
+KeyBox.Size = UDim2.new(1, -20, 0, 30)
+KeyBox.Position = UDim2.new(0, 10, 0, 50)
+KeyBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
+KeyBox.TextColor3 = Color3.new(1,1,1)
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.TextSize = 14
+Instance.new("UICorner", KeyBox)
+
+-- AI Toggle
+local ToggleAI = Instance.new("TextButton", Frame)
+ToggleAI.Size = UDim2.new(1, -20, 0, 35)
+ToggleAI.Position = UDim2.new(0, 10, 0, 95)
+ToggleAI.BackgroundColor3 = Color3.fromRGB(50,50,50)
+ToggleAI.Text = "AI: OFF"
+ToggleAI.TextColor3 = Color3.new(1,1,1)
+ToggleAI.Font = Enum.Font.GothamBold
+ToggleAI.TextSize = 16
+Instance.new("UICorner", ToggleAI)
+
+-- Public Toggle
+local TogglePub = Instance.new("TextButton", Frame)
+TogglePub.Size = UDim2.new(1, -20, 0, 35)
+TogglePub.Position = UDim2.new(0, 10, 0, 140)
+TogglePub.BackgroundColor3 = Color3.fromRGB(50,50,50)
+TogglePub.Text = "Public AI: OFF"
+TogglePub.TextColor3 = Color3.new(1,1,1)
+TogglePub.Font = Enum.Font.GothamBold
+TogglePub.TextSize = 16
+Instance.new("UICorner", TogglePub)
+
+-- Status Label
+local Status = Instance.new("TextLabel", Frame)
+Status.Size = UDim2.new(1, -20, 0, 30)
+Status.Position = UDim2.new(0, 10, 0, 185)
+Status.BackgroundTransparency = 1
+Status.TextColor3 = Color3.fromRGB(255,255,255)
+Status.Font = Enum.Font.Gotham
+Status.TextSize = 14
+Status.Text = "Waiting for key..."
+
+-- VARIABLES
+local AI_ENABLED = false
+local PUBLIC_ENABLED = false
+local API_KEY = nil
+
+-- Toggles
+ToggleAI.MouseButton1Click:Connect(function()
+    AI_ENABLED = not AI_ENABLED
+    ToggleAI.Text = AI_ENABLED and "AI: ON" or "AI: OFF"
+end)
+
+TogglePub.MouseButton1Click:Connect(function()
+    PUBLIC_ENABLED = not PUBLIC_ENABLED
+    TogglePub.Text = PUBLIC_ENABLED and "Public AI: ON" or "Public AI: OFF"
+end)
+
+-- When user presses enter on keybox
+KeyBox.FocusLost:Connect(function(enter)
+    if enter then
+        API_KEY = KeyBox.Text
+        if API_KEY ~= "" then
+            Status.Text = "Key saved. AI ready."
+        end
+    end
+end)
+
+-- CHAT LISTENER
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
-local HttpService = game:GetService("HttpService")
 
--- Parent GUI: prefer PlayerGui; fallback to CoreGui if allowed by your executor
-local parentGui = (LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")) and LocalPlayer:FindFirstChild("PlayerGui") or game:GetService("CoreGui")
+LocalPlayer.Chatted:Connect(function(msg)
+    if not AI_ENABLED then return end
+    if not msg:lower():sub(1,3) == "#ai" then return end
 
--- small helpers
-local function tween(object, props, duration, style, direction, onComplete)
-    local info = TweenInfo.new(duration or 0.18, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
-    local t = TweenService:Create(object, info, props)
-    t:Play()
-    if onComplete then t.Completed:Connect(onComplete) end
-    return t
-end
+    -- If public mode OFF and not you
+    if (not PUBLIC_ENABLED) and LocalPlayer ~= Players.LocalPlayer then
+        return
+    end
 
-local function SysNotify(title, msg)
-    local text = "[" .. tostring(title or "System") .. "] " .. tostring(msg or "")
+    if not API_KEY then
+        Status.Text = "ERROR: Enter API key!"
+        return
+    end
+
+    local q = msg:sub(5)
+
+    -- Gemini API call
+    local response
     pcall(function()
-        StarterGui:SetCore("ChatMakeSystemMessage", {
-            Text = text,
-            Color = Color3.fromRGB(150, 180, 255),
-            Font = Enum.Font.SourceSansBold,
-            FontSize = Enum.FontSize.Size14
-        })
-    end)
-end
-
--- Orion-like UI factory (compact)
-local Orion = {}
-do
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "GeminiAI_UI"
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    ScreenGui.Parent = parentGui
-
-    local Main = Instance.new("Frame")
-    Main.Name = "Main"
-    Main.Size = UDim2.new(0, 480, 0, 320)
-    Main.Position = UDim2.new(0.5, -240, 0.5, -160)
-    Main.AnchorPoint = Vector2.new(0.5, 0.5)
-    Main.BackgroundColor3 = Color3.fromRGB(28,28,28)
-    Main.BorderSizePixel = 0
-    Main.Parent = ScreenGui
-    Orion.Main = Main
-
-    local UIC = Instance.new("UICorner"); UIC.CornerRadius = UDim.new(0, 10); UIC.Parent = Main
-
-    local TitleBar = Instance.new("Frame")
-    TitleBar.Name = "TitleBar"
-    TitleBar.Size = UDim2.new(1,0,0,34)
-    TitleBar.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    TitleBar.BorderSizePixel = 0
-    TitleBar.Parent = Main
-    Orion.TitleBar = TitleBar
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -80, 1, 0)
-    Title.Position = UDim2.new(0,12,0,0)
-    Title.BackgroundTransparency = 1
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 16
-    Title.TextColor3 = Color3.fromRGB(220,220,220)
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.Text = "Gemini AI Controls"
-    Title.Parent = TitleBar
-    Orion.TitleLabel = Title
-
-    local Close = Instance.new("TextButton")
-    Close.Size = UDim2.new(0, 40, 1, 0)
-    Close.Position = UDim2.new(1, -44, 0, 0)
-    Close.BackgroundColor3 = Color3.fromRGB(200,50,50)
-    Close.BackgroundTransparency = 0.7
-    Close.Text = "X"
-    Close.Font = Enum.Font.GothamBold
-    Close.TextColor3 = Color3.fromRGB(255,255,255)
-    Close.Parent = TitleBar
-    Orion.Close = Close
-
-    Close.MouseEnter:Connect(function() tween(Close, {BackgroundTransparency = 0.25}, 0.12) end)
-    Close.MouseLeave:Connect(function() tween(Close, {BackgroundTransparency = 0.7}, 0.12) end)
-    Close.MouseButton1Click:Connect(function() pcall(function() ScreenGui:Destroy() end) end)
-
-    local Content = Instance.new("Frame")
-    Content.Name = "Content"
-    Content.Size = UDim2.new(1, -24, 1, -54)
-    Content.Position = UDim2.new(0, 12, 0, 42)
-    Content.BackgroundTransparency = 1
-    Content.Parent = Main
-    Orion.Content = Content
-
-    local UIList = Instance.new("UIListLayout")
-    UIList.Padding = UDim.new(0, 10)
-    UIList.Parent = Content
-
-    -- small helper to create labeled row
-    local function newRow(height)
-        local f = Instance.new("Frame")
-        f.Size = UDim2.new(1, 0, 0, height or 34)
-        f.BackgroundTransparency = 1
-        f.Parent = Content
-        return f
-    end
-
-    -- API key row
-    local rowKey = newRow(64)
-    local lblKey = Instance.new("TextLabel", rowKey)
-    lblKey.Size = UDim2.new(0.35, -8, 1, 0)
-    lblKey.Position = UDim2.new(0, 0, 0, 0)
-    lblKey.BackgroundTransparency = 1
-    lblKey.Text = "Gemini API Key"
-    lblKey.Font = Enum.Font.Gotham
-    lblKey.TextColor3 = Color3.fromRGB(220,220,220)
-    lblKey.TextSize = 14
-    lblKey.TextXAlignment = Enum.TextXAlignment.Left
-
-    local keyBox = Instance.new("TextBox", rowKey)
-    keyBox.Size = UDim2.new(0.65, -8, 1, 0)
-    keyBox.Position = UDim2.new(0.35, 8, 0, 0)
-    keyBox.BackgroundColor3 = Color3.fromRGB(38,38,38)
-    keyBox.BorderSizePixel = 0
-    keyBox.PlaceholderText = "paste key here"
-    keyBox.Font = Enum.Font.Gotham
-    keyBox.TextColor3 = Color3.fromRGB(230,230,230)
-    keyBox.TextSize = 14
-
-    local keySetBtn = Instance.new("TextButton", rowKey)
-    keySetBtn.Size = UDim2.new(0, 86, 0, 28)
-    keySetBtn.Position = UDim2.new(1, -86, 0.5, -14)
-    keySetBtn.AnchorPoint = Vector2.new(1, 0.5)
-    keySetBtn.Text = "Set Key"
-    keySetBtn.Font = Enum.Font.GothamBold
-    keySetBtn.TextSize = 14
-    keySetBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    keySetBtn.TextColor3 = Color3.fromRGB(230,230,230)
-    keySetBtn.Parent = rowKey
-
-    -- toggles row
-    local rowTog = newRow(34)
-    local function makeToggle(parent, xPos, labelText, default)
-        local lbl = Instance.new("TextLabel", parent)
-        lbl.Size = UDim2.new(0.45, 0, 1, 0)
-        lbl.Position = UDim2.new(xPos, 6, 0, 0)
-        lbl.BackgroundTransparency = 1
-        lbl.Text = labelText
-        lbl.Font = Enum.Font.Gotham
-        lbl.TextColor3 = Color3.fromRGB(220,220,220)
-        lbl.TextSize = 14
-        lbl.TextXAlignment = Enum.TextXAlignment.Left
-
-        local tbtn = Instance.new("TextButton", parent)
-        tbtn.Size = UDim2.new(0, 54, 0, 22)
-        tbtn.Position = UDim2.new(xPos + 0.45, -6, 0.5, -11)
-        tbtn.AnchorPoint = Vector2.new(0, 0.5)
-        tbtn.BackgroundColor3 = default and Color3.fromRGB(0,170,0) or Color3.fromRGB(90,90,90)
-        tbtn.Text = default and "ON" or "OFF"
-        tbtn.Font = Enum.Font.GothamBold
-        tbtn.TextColor3 = Color3.fromRGB(255,255,255)
-        tbtn.TextSize = 12
-
-        local state = default
-        tbtn.MouseButton1Click:Connect(function()
-            state = not state
-            tbtn.BackgroundColor3 = state and Color3.fromRGB(0,170,0) or Color3.fromRGB(90,90,90)
-            tbtn.Text = state and "ON" or "OFF"
-            if parent._onToggle then
-                pcall(parent._onToggle, state)
-            end
-        end)
-
-        return tbtn, function() return state end, function(cb) parent._onToggle = cb end
-    end
-
-    local aiToggleBtn, getAiState, onAiChanged = makeToggle(rowTog, 0, "AI Enabled", false)
-    local publicToggleBtn, getPublicState, onPublicChanged = makeToggle(rowTog, 0.5, "Public AI", false)
-
-    -- info row
-    local rowInfo = newRow(28)
-    local infoLabel = Instance.new("TextLabel", rowInfo)
-    infoLabel.Size = UDim2.new(1,0,1,0)
-    infoLabel.BackgroundTransparency = 1
-    infoLabel.Text = "When enabled: type '#ai your question' in chat to get a reply."
-    infoLabel.Font = Enum.Font.Gotham
-    infoLabel.TextColor3 = Color3.fromRGB(180,180,180)
-    infoLabel.TextSize = 13
-    infoLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-    -- helper to build UI updates externally
-    Orion.SetKeyBox = function(text) keyBox.Text = tostring(text or "") end
-    Orion.GetKey = function() return tostring(keyBox.Text or "") end
-    Orion.IsAIEnabled = getAiState
-    Orion.IsPublicEnabled = getPublicState
-    Orion.OnAIChanged = onAiChanged
-    Orion.OnPublicChanged = onPublicChanged
-    Orion.ScreenGui = ScreenGui
-
-    -- expose some internal elements if needed
-    Orion._keySetBtn = keySetBtn
-
-    -- tweened dragging with smoothing (inertia-like)
-    do
-        local dragging = false
-        local dragStart = Vector2.new()
-        local startPos = Vector2.new()
-        local velocity = Vector2.new()
-        local lastPos = nil
-
-        TitleBar.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                dragStart = input.Position
-                startPos = Vector2.new(Orion.Main.AbsolutePosition.X, Orion.Main.AbsolutePosition.Y)
-                lastPos = input.Position
-                input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then
-                        dragging = false
-                    end
-                end)
-            end
-        end)
-
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local delta = input.Position - dragStart
-                local newPos = startPos + delta
-                -- immediate set
-                Orion.Main.Position = UDim2.new(0, newPos.X, 0, newPos.Y)
-                -- velocity calculation for smoothing on release
-                if lastPos then
-                    velocity = input.Position - lastPos
-                end
-                lastPos = input.Position
-            end
-        end)
-
-        -- smoothing when user stops dragging (inertia)
-        RunService.RenderStepped:Connect(function(dt)
-            if not dragging then
-                -- apply small decay to velocity and move a bit
-                if velocity.Magnitude > 0.5 then
-                    local cur = Orion.Main.Position
-                    local newX = cur.X.Offset + velocity.X * dt * 60 * 0.8
-                    local newY = cur.Y.Offset + velocity.Y * dt * 60 * 0.8
-                    Orion.Main.Position = UDim2.new(0, newX, 0, newY)
-                    velocity = velocity * (0.92) -- friction
-                else
-                    velocity = Vector2.new()
-                end
-            end
-        end)
-    end
-end
-
--- ========== AI logic ==========
-local GeminiKey = "" -- stored while session runs
-local ModelName = "gemini-1.5-flash" -- default model
-local AIEnabled = false
-local PublicEnabled = false
-
--- try multiple request functions commonly available in exploit runtimes
-local function tryRequest(reqTable)
-    local methods = {}
-
-    if syn and syn.request then
-        table.insert(methods, function()
-            return syn.request(reqTable)
-        end)
-    end
-    if request then
-        table.insert(methods, function()
-            return request(reqTable)
-        end)
-    end
-    if http_request then
-        table.insert(methods, function()
-            return http_request(reqTable)
-        end)
-    end
-    -- HttpService client-side request (may fail depending on environment)
-    table.insert(methods, function()
-        return HttpService:RequestAsync({
-            Url = reqTable.Url,
-            Method = reqTable.Method or "GET",
-            Headers = reqTable.Headers,
-            Body = reqTable.Body
-        })
+        response = game:HttpPost(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="..API_KEY,
+            '{"contents":[{"parts":[{"text":"'..q..'"}]}]}',
+            Enum.HttpContentType.ApplicationJson
+        )
     end)
 
-    for _, fn in ipairs(methods) do
-        local ok, res = pcall(fn)
-        if ok and res then
-            -- normalize response format
-            if res.Body or res.body then
-                return true, (res.Body or res.body)
-            elseif res.Success and res.Body then
-                return true, res.Body
-            end
-        end
-    end
+    local answer = response or "AI ERROR"
 
-    return false, "No available request method or all failed."
-end
+    game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+        answer, "All"
+    )
+end)
 
--- build Gemini API request body (best-effort - Gemini API surface may differ; adjust if you host proxy)
-local function buildGeminiPayload(prompt)
-    -- This payload is a best-effort shape for typical generative endpoints.
-    -- If you use your own proxy, adapt proxy to accept `prompt` as JSON.
-    return HttpService:JSONEncode({
-        prompt = prompt,
-        temperature = 0.2,
-        max_output_tokens = 512
-    })
-end
+-- MOBILE DRAGGING (smooth + Delta safe)
+local UIS = game:GetService("UserInputService")
+local dragging = false
+local dragStart
+local startPos
 
-local function sendGeminiRequest(prompt)
-    if not GeminiKey or GeminiKey == "" then
-        return false, "No API key set."
-    end
-
-    -- try direct call to a typical Gemini endpoint (note: endpoint & body may need to adapt for your setup)
-    local url = ("https://generativelanguage.googleapis.com/v1beta2/models/%s:generateText?key=%s"):format(ModelName, GeminiKey)
-    local body = buildGeminiPayload(prompt)
-    local headers = {
-        ["Content-Type"] = "application/json"
-    }
-
-    local ok, resp = tryRequest({
-        Url = url,
-        Method = "POST",
-        Headers = headers,
-        Body = body
-    })
-
-    if ok and resp and type(resp) == "string" then
-        -- attempt to parse JSON and extract text
-        local suc, data = pcall(function() return HttpService:JSONDecode(resp) end)
-        if suc and data then
-            if data.candidates and type(data.candidates) == "table" and #data.candidates > 0 and data.candidates[1].content and data.candidates[1].content[1] then
-                return true, tostring(data.candidates[1].content[1].text or data.candidates[1].content[1].parts and data.candidates[1].content[1].parts[1] or "")
-            elseif data.output and data.output[1] and data.output[1].content and data.output[1].content[1] and data.output[1].content[1].text then
-                return true, tostring(data.output[1].content[1].text)
-            else
-                return true, tostring(resp)
-            end
-        else
-            return false, "Failed to JSON decode response: " .. tostring(resp)
-        end
-    end
-
-    return false, resp or "Unknown error"
-end
-
--- fallback local simulation (safe)
-local function LocalAI(prompt)
-    local p = (prompt or ""):lower()
-    if p:find("hello") or p:find("hi") then return "Hello! How can I help?" end
-    if p:find("5x3") or p:find("5 x 3") or p:match("5%s*[xX]%s*3") then return "5 times 3 is 15." end
-    if p:find("what's your name") or p:find("your name") then return "I'm a local Gemini-simulated assistant." end
-    if p:find("joke") then return "Why did the programmer quit his job? Because he didn't get arrays." end
-    return "Sorry — local AI doesn't know that. Try a simpler question or set a real Gemini key."
-end
-
--- core handler: when a message with prefix is seen, call AI (tries real request, falls back to local)
-local function handleAIRequest(fromPlayer, message)
-    if not message then return end
-    local prefix, prompt = tostring(message):lower():match("^(#ai)%s+(.+)$")
-    if not prompt then return end
-
-    -- public filter
-    if not PublicEnabled and fromPlayer ~= LocalPlayer then
-        return
-    end
-
-    if not AIEnabled then
-        return
-    end
-
-    -- notify and attempt call
-    SysNotify("Gemini AI", "Processing AI request...")
-    -- first try real Gemini call if key present
-    if GeminiKey and GeminiKey ~= "" then
-        local success, data = pcall(function() return sendGeminiRequest(prompt) end)
-        if success then
-            -- sendGeminiRequest returns (true, text) or (false, err)
-            local ok, result = sendGeminiRequest(prompt)
-            if ok and result then
-                pcall(function()
-                    game:GetService("Chat"):Chat(LocalPlayer, result, Enum.ChatColor.Blue)
-                end)
-                return
-            else
-                SysNotify("Gemini AI", "Remote request failed (" .. tostring(result) .. "). Using local fallback.")
-                local localAnswer = LocalAI(prompt)
-                pcall(function() game:GetService("Chat"):Chat(LocalPlayer, localAnswer, Enum.ChatColor.Blue) end)
-                return
-            end
-        else
-            SysNotify("Gemini AI", "Request attempt failed. Using local fallback.")
-            local localAnswer = LocalAI(prompt)
-            pcall(function() game:GetService("Chat"):Chat(LocalPlayer, localAnswer, Enum.ChatColor.Blue) end)
-            return
-        end
-    else
-        -- no key: use local fallback
-        local localAnswer = LocalAI(prompt)
-        pcall(function() game:GetService("Chat"):Chat(LocalPlayer, localAnswer, Enum.ChatColor.Blue) end)
-    end
-end
-
--- connect chat listeners
-local chattedConnections = {}
-
-local function connectListenerToPlayer(player)
-    if not player then return end
-    if chattedConnections[player] then return end
-    local con = player.Chatted:Connect(function(msg)
-        handleAIRequest(player, msg)
-    end)
-    chattedConnections[player] = con
-end
-
-local function disconnectAllPlayerConnections()
-    for p, c in pairs(chattedConnections) do
-        if c and c.Disconnect then
-            pcall(function() c:Disconnect() end)
-        end
-        chattedConnections[p] = nil
-    end
-end
-
--- connect current players
-for _, pl in ipairs(Players:GetPlayers()) do
-    connectListenerToPlayer(pl)
-end
-Players.PlayerAdded:Connect(connectListenerToPlayer)
-Players.PlayerRemoving:Connect(function(p)
-    if chattedConnections[p] then
-        pcall(function() chattedConnections[p]:Disconnect() end)
-        chattedConnections[p] = nil
+Title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
     end
 end)
 
--- Also listen to local player's chat via LocalPlayer.Chatted (works reliably)
-local localCh = nil
-localCh = LocalPlayer.Chatted:Connect(function(msg)
-    handleAIRequest(LocalPlayer, msg)
+Title.InputEnded:Connect(function(input)
+    dragging = false
 end)
 
--- wire UI controls
-do
-    -- set key button
-    local keyBtn = Orion._keySetBtn
-    keyBtn.MouseButton1Click:Connect(function()
-        local entered = Orion.GetKey()
-        local trimmed = tostring(entered or ""):gsub("%s+", "")
-        if #trimmed >= 8 then
-            GeminiKey = trimmed
-            SysNotify("Gemini AI", "API key set. AI activated. Type '#ai <question>' in chat.")
-            AIEnabled = true
-        else
-            SysNotify("Gemini AI", "Key seems too short. Paste a valid key (>=8 chars).")
-        end
-    end)
-
-    -- when toggles change, update variables
-    Orion.OnAIChanged(function(state) AIEnabled = state end)
-    Orion.OnPublicChanged(function(state) PublicEnabled = state end)
-end
-
--- initial instructions
-SysNotify("Gemini AI", "UI loaded. Paste your Gemini key and press Set Key. Then type '#ai <question>' to chat. Toggle Public to allow others (if your client supports listening to others).")
-
--- Return API for other scripts if needed
-return {
-    Orion = Orion,
-    SetKey = function(k) GeminiKey = tostring(k or "") end,
-    GetKey = function() return GeminiKey end,
-    SetAIEnabled = function(b) AIEnabled = not not b end,
-    SetPublicEnabled = function(b) PublicEnabled = not not b end
-}
+UIS.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
